@@ -1,5 +1,5 @@
 ### 2048 
-### (that popular mobile game back around ~2014)
+(that popular mobile game back around ~2014)\
 
 This program uses the library conio.h, which doesn't seem to be available on MacOS
 

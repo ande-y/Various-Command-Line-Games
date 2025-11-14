@@ -1,6 +1,6 @@
 ### Minesweeper
 
-This program contains Windows commands, not compatible with MacOS.\
+This program contains Windows commands, not compatible with MacOS.
 
 Basic coding concepts used:
   - resursion
