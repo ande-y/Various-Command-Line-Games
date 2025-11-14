@@ -70,27 +70,103 @@ class Table {
 
 class Player {
     private:
+    string name;
+    bool playable = false;
     vector<Tile> hand;
 
     public:
+    Player(bool p, string n){
+        playable = p;
+        name = n;
+    }
+
+    string getName(){ return name; }
+    bool isPlayable(){ return playable; }
+
     void draw(Tile t){
         hand.push_back(t);
     }
 
     Tile drop(){
-                                            // !!!
+        int index;
+
+        if (playable){
+            cout << char(22) << "Discard a tile (1-14): ";
+            cin >> index;
+            index--;
+        }
+        else {
+            index = 0;
+        }
+
+        Tile choice = hand[index];
+        hand.erase(hand.begin() + index);
+        return choice;
     }
 
     int decide(Tile droppedTile){
-                                            // !!!
+        int action = NONE;
+
+        // if (!canSteal()) return action; 
+
+        if (playable){
+            cout << "► make decision: ";
+            int decision;
+            cin >> decision;
+        }
+        else {
+            // BOT algo
+        }
+
+        return action; // placeholder
+    }
+
+    void printTiles(){
+        for (int i = 0; i < hand.size(); i++){
+            int s = hand[i].suit, r = hand[i].rank;
+            cout << tileGraphics[s][r];
+        }
+        cout << endl;
     }
 };
 
+void printTable(Player player[], Table table, int turn){
+    printf("□ Remaining Tiles: x%d %s\n", table.remainingTiles(), BackOfTile.c_str());
+    printf("========================================\n");
+
+    for (int i = 0; i < 4; i++){
+        (i == turn) ? cout << "● " : cout << "  ";
+
+        printf("%-12s", player[i].getName().c_str());
+        player[i].printTiles();
+    }
+    printf("========================================\n");
+}
+
+string translate(int action){
+    if (action == NONE){
+        cout << "<!> error impossible steal action";
+        exit(1);
+    }
+    if (action == CHOW) return "chows";
+    if (action == PONG) return "pongs";
+    return "kongs";
+}
+
 void playGame(Player player[], Table table, int dealer){
     int turn = dealer;
-    
+
+    cout << "□ " << player[turn].getName() << " starts the game.\n";
+
     while (true){
+        // user must see their 14th tile when discarding, so print() comes before drop()
+        // on the other hand, user must see what bot discards, so drop() comes before print()
+        if (player[turn].isPlayable()) printTable(player, table, turn);
         Tile droppedTile = player[turn].drop();
+        if (!player[turn].isPlayable()) printTable(player, table, turn);
+
+        string t = tileGraphics[droppedTile.suit][droppedTile.rank];
+        printf("□ %s discards: %s\n", player[turn].getName().c_str(), t.c_str());
 
         int action[4] = {NONE, NONE, NONE, NONE};
         for (int i = 0; i < 4; i++){
@@ -106,16 +182,27 @@ void playGame(Player player[], Table table, int dealer){
             }
         }
 
+        system("cls");
+
         if (taker != turn){
             player[taker].draw(droppedTile);
             turn = taker;
+            cout << "□ " << player[taker].getName() << " " << translate(action[taker]) << "the tile!\n";
         }
-        else turn = (turn + 1) % 4;
+        else {
+            turn = (turn + 1) % 4;
+            player[turn].draw(table.giveTile());
+            cout << "□ " << player[turn].getName() << " draws a tile.\n";
+        }
     }
 }
 
 int main(){
-    Player p0, p1, p2, p3;
+    Player p0 = {1, "YOU"};
+    Player p1 = {0, "opponent1"};
+    Player p2 = {0, "opponent2"};
+    Player p3 = {0, "opponent3"};
+
     Player player[4] = {p0, p1, p2, p3};
     Table table;
 
