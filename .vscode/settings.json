@@ -2,6 +2,15 @@
     "files.associations": {
         "iostream": "cpp",
         "new": "cpp",
-        "ostream": "cpp"
+        "ostream": "cpp",
+        "array": "cpp",
+        "string_view": "cpp",
+        "initializer_list": "cpp",
+        "span": "cpp",
+        "vector": "cpp",
+        "string": "cpp",
+        "format": "cpp",
+        "deque": "cpp",
+        "unordered_map": "cpp"
     }
 }

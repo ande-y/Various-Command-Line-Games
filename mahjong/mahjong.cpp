@@ -18,14 +18,14 @@ using namespace std;
 #define EYES 55
 
 const string BackOfTile = "🀫";
-const string tileGraphics[7][9] = 
+const vector<vector<string>> tileGraphics = 
     {{"🀇", "🀈", "🀉", "🀊", "🀋", "🀌", "🀍", "🀎", "🀏"},
      {"🀙", "🀚", "🀛", "🀜", "🀝", "🀞", "🀟", "🀠", "🀡"},
      {"🀐", "🀑", "🀒", "🀓", "🀔", "🀕", "🀖", "🀗", "🀘"},
-     {"🀀", "🀁", "🀂", "🀃", "X" , "X" , "X" , "X" , "X" },
-     {"🀆", "🀅", "🀄", "X" , "X" , "X" , "X" , "X" , "X" },
-     {"🀢", "🀣", "🀤", "🀥", "X" , "X" , "X" , "X" , "X" },
-     {"🀦", "🀧", "🀨", "🀩", "X" , "X" , "X" , "X" , "X" }};
+     {"🀀", "🀁", "🀂", "🀃"},
+     {"🀆", "🀅", "🀄"},
+     {"🀢", "🀣", "🀤", "🀥"},
+     {"🀦", "🀧", "🀨", "🀩"}};
 
 void thrErr(string s){
     cout << "<!> " << s << endl;
@@ -41,15 +41,18 @@ class Table {
     private:
     vector<Tile> wall;
     vector<Tile> pile;
-    int discards[7][9] = {};
-
+    vector<vector<int>> discardCounter =
+        {{0, 0, 0, 0, 0, 0, 0, 0, 0},
+         {0, 0, 0, 0, 0, 0, 0, 0, 0},
+         {0, 0, 0, 0, 0, 0, 0, 0, 0},
+         {0, 0, 0, 0},
+         {0, 0, 0}};
+    
     public:
     Table(){
         for (int suit = 0; suit < 7; suit++){
-            for (int rank = 0; rank < 9; rank++){
-                if (suit >= 3 && rank >= 4) continue;       // skip nonexistant wind, dragon, season, & flower tiles
-                if (suit == 4 && rank == 3) continue;       // skip a nonexistant dragon tiles
-                if (suit >= 5){                             // add only one of each season & flower tiles
+            for (int rank = 0; rank < tileGraphics[suit].size(); rank++){
+                if (suit == FLOWER || suit == SEASON){
                     wall.push_back({suit, rank});
                     continue;
                 }
@@ -71,12 +74,12 @@ class Table {
 
     void takeDiscardedTile(Tile t){
         pile.push_back(t);
-        discards[t.suit][t.rank]++;
+        discardCounter[t.suit][t.rank]++;
     }
 
     void printPile(){
         for (int i = 0; i < pile.size(); i++){
-            if (i % 23 == 0) cout << endl;
+            if (i % 21 == 0) cout << endl;
             cout << tileGraphics[pile[i].suit][pile[i].rank];
         }
         cout << endl;
@@ -86,9 +89,9 @@ class Table {
 class Player {
     private:
     string name;
-    bool playable = false;
-    vector<Tile> hand;
-    vector<Tile> revealed;
+    bool playable;
+    vector<Tile> hand, revealed;
+    vector<double> tileValues;
 
     public:
     Player(bool p, string n){
@@ -122,7 +125,7 @@ class Player {
 
         }
         
-        thrErr("impossible steal action");
+        thrErr("Player:steal: impossible steal action");
     }
 
     Tile drop(){
@@ -143,21 +146,35 @@ class Player {
     }
 
     void analyzeHand(){
-        int tileCounter[5][9] = 
-            {{0, 0, 0,  0,  0,  0,  0,  0,  0},
-             {0, 0, 0,  0,  0,  0,  0,  0,  0},
-             {0, 0, 0,  0,  0,  0,  0,  0,  0},
-             {0, 0, 0,  0, -1, -1, -1, -1, -1},
-             {0, 0, 0, -1, -1, -1, -1, -1, -1}};
+        vector<vector<int>> tileCounter = 
+            {{0, 0, 0, 0, 0, 0, 0, 0, 0},
+             {0, 0, 0, 0, 0, 0, 0, 0, 0},
+             {0, 0, 0, 0, 0, 0, 0, 0, 0},
+             {0, 0, 0, 0},
+             {0, 0, 0}};
         
         for (int i = 0; i < hand.size(); i++){
             int s = hand[i].suit;
             int r = hand[i].rank;
-            if (tileCounter[s][r] == -1) thrErr("nonexistance tile detected");
+            if (tileCounter[s][r] == -1) thrErr("Player:analyzeHand: nonexistance tile detected");
             tileCounter[s][r]++;
         }
 
-        // INCOMPLETE
+        // assign default value for each tile (1 for suits, 0.8 for terminals, 0.7 for honors)
+        tileCounter.clear();
+        for (int i = 0; i < hand.size(); i++){
+            int s = hand[i].suit, r = hand[i].rank;
+            if (s == WIND || s == DRAGON) tileValues[i] = .7;
+            else if (s == CHAR || s == DOTS || s == STIX){
+                if (r == 0 || r == 8) tileValues[i] = .8;
+                else tileValues[i] = 1;
+            } 
+            else thrErr("Player:analyzeHand: attempting to play bonus tile");
+        }
+
+        // scan for completed sets, increase value of those tiles
+        // scan for partial sets (2 tiles), increase value of those tiles
+        // find missing tile of a partial set, scan the table's pile, tweak values of those partial sets
     }
 
     int decide(Tile droppedTile, bool canChow){
@@ -200,7 +217,7 @@ class Player {
         for (int i = 0; i < revealed.size(); i++){
             int s = revealed[i].suit, r = revealed[i].rank;
             cout << tileGraphics[s][r];
-        // cout << " ⬩ ";
+        // cout << "⬩";
         }
         cout << endl;
     }
@@ -208,10 +225,10 @@ class Player {
 
 void printTable(bool gameFinished, Player player[], Table table, int turn){
     printf("□ Remaining Wall Tiles: x%d %s\n", table.remainingTiles(), BackOfTile.c_str());
-    printf("=============================================\n");
+    printf("==========================================\n");
     printf("□ Permanently Discarded Tiles:");
     table.printPile();
-    printf("=============================================\n");
+    printf("==========================================\n");
 
     for (int i = 0; i < 4; i++){
         (i == turn) ? cout << "» " : cout << "  ";
@@ -219,29 +236,30 @@ void printTable(bool gameFinished, Player player[], Table table, int turn){
         printf("%-12s", player[i].getName().c_str());
         player[i].printTiles(gameFinished);
 
-        if (i != 3) printf("---------------------------------------------\n");
+        if (i != 3) printf("------------------------------------------\n");
     }
-    printf("=============================================\n");
+    printf("==========================================\n");
 }
 
 string translate(int action){
     if (action == CHOW) return "CHOWs the tile!\n";
     if (action == PONG) return "PONGs the tile!\n";
     if (action == KONG) return "KONGs the tile!\n";
-    if (action == EYES) return "take the tile as EYES!";
-    thrErr ("impossible steal action");
-    return " ";
+    if (action == EYES) return "take the tile as EYES!\n";
+    thrErr ("translate: impossible steal action");
+    return "";
 }
 
 void gameTie(Player player[], Table table, int turn){
     printTable(true, player, table, turn);
-    cout << "□ No more tiles! The game ends with a tie.";
+    cout << "□ No more tiles! The game ends with a tie.\n";
     exit(0);
 }
 
 void gameWin(Player player[], Table table, int turn){
     printTable(true, player, table, turn);
     cout << "□ " << player[turn].getName() << " wins!\n";
+    exit(0);
 }
 
 void playGame(Player player[], Table table, int dealer){
@@ -278,6 +296,10 @@ void playGame(Player player[], Table table, int dealer){
         if (taker != turn){
             player[taker].steal(droppedTile, action[taker]);
             turn = taker;
+
+            // player who kongs needs to draw another tile
+            if (action[taker] == KONG) while (player[turn].draw(table.giveTile()));
+
             cout << "□ " << player[taker].getName() << " " << translate(action[taker]);
         }
         else {
@@ -296,10 +318,10 @@ void playGame(Player player[], Table table, int dealer){
 int main(){
     srand(time(0));
     
-    Player p0 = {true, "YOU"};
-    Player p1 = {false, "opponent1"};
-    Player p2 = {false, "opponent2"};
-    Player p3 = {false, "opponent3"};
+    Player p0(true, "YOU");
+    Player p1(false, "opponent1");
+    Player p2(false, "opponent2");
+    Player p3(false, "opponent3");
 
     Player player[4] = {p0, p1, p2, p3};
     Table table;
