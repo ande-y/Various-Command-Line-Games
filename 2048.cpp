@@ -107,6 +107,8 @@ void print(int points){
         cout << endl;
     }
     cout <<"points: "<< points << endl;
+    cout << "\npress WASD to play, [space] to end game.\n";
+
 }
 
 bool doubleCheck(){
@@ -163,5 +165,3 @@ int main(){
 
     return 0;
 }
-
-// utilize WASD to play, [space] to end
