@@ -1,4 +1,4 @@
-## Texas Hold'em
+## Poker / Texas Hold'em
 
 This program contains Windows commands, therefore it may have issues executing on MacOS.  
 <!> *This program prints unicode character. Execute `chcp 65001` in the terminal before running the game.*

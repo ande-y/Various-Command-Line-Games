@@ -156,12 +156,10 @@ class Player {
         for (int i = 0; i < hand.size(); i++){
             int s = hand[i].suit;
             int r = hand[i].rank;
-            if (tileCounter[s][r] == -1) thrErr("Player:analyzeHand: nonexistance tile detected");
             tileCounter[s][r]++;
         }
 
         // assign default value for each tile (1 for suits, 0.8 for terminals, 0.7 for honors)
-        tileCounter.clear();
         for (int i = 0; i < hand.size(); i++){
             int s = hand[i].suit, r = hand[i].rank;
             if (s == WIND || s == DRAGON) tileValues[i] = .7;
@@ -172,9 +170,14 @@ class Player {
             else thrErr("Player:analyzeHand: attempting to play bonus tile");
         }
 
-        // scan for completed sets, increase value of those tiles
-        // scan for partial sets (2 tiles), increase value of those tiles
-        // find missing tile of a partial set, scan the table's pile, tweak values of those partial sets
+        for (int i = 0; i < 5; i++){
+            for (int j = 0; j < 9; j++){
+                // scan for completed sets, increase value of those tiles
+                // scan for partial sets (2 tiles), increase value of those tiles
+                // find missing tile of a partial set, scan the table's pile, tweak values of those partial sets
+            }
+        }
+
     }
 
     int decide(Tile droppedTile, bool canChow){
@@ -250,15 +253,12 @@ string translate(int action){
     return "";
 }
 
-void gameTie(Player player[], Table table, int turn){
+void endGame(Player player[], Table table, int turn, bool winner){
     printTable(true, player, table, turn);
-    cout << "□ No more tiles! The game ends with a tie.\n";
-    exit(0);
-}
 
-void gameWin(Player player[], Table table, int turn){
-    printTable(true, player, table, turn);
-    cout << "□ " << player[turn].getName() << " wins!\n";
+    if (winner) cout << "□ " << player[turn].getName() << " wins!\n";
+    else cout << "□ No more tiles! The game ends with a tie.\n";
+
     exit(0);
 }
 
@@ -304,14 +304,14 @@ void playGame(Player player[], Table table, int dealer){
         }
         else {
             table.takeDiscardedTile(droppedTile);
-            if (table.remainingTiles() == 0) gameTie(player, table, turn);
+            if (table.remainingTiles() == 0) endGame(player, table, turn, false);
 
             turn = (turn + 1) % 4;
             while (player[turn].draw(table.giveTile()));
             cout << "□ " << player[turn].getName() << " draws a tile.\n";
         }
 
-        // if (checkWin(player[turn])) gameWin(player, table, turn);
+        // if (checkWin(player[turn])) endGame(player, table, turn, true);
     }
 }
 
