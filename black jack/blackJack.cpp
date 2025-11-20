@@ -130,7 +130,7 @@ class Player {
             chips -= amount;
         }
         else {
-            amount = 1;     // PLACEHOLDER
+            amount = 10;     // PLACEHOLDER
             bet = amount;
             chips -= amount;
         }
@@ -165,7 +165,13 @@ class Player {
             return choice;            
         }
 
-        return HIT;     // PLACEHOLDER
+        cout << dealerValue << "!!!!!!!!";
+        int myValue = getValue();
+        if (myValue == 21) return STAND;
+        if (dealerValue > myValue) return HIT;
+        if (myValue < 12) return DOUBL;
+        if (dealerValue < 7 || myValue > 15) return STAND;
+        return HIT; 
     }
 
     int getValue(){
@@ -367,15 +373,15 @@ void playGame(Player players[], Dealer dealer, int size){
 
     for (int i = 0; i < size; i++){
         // evaluate players who stood
-        if (action[i] == STAND){
+        if (action[i] == STAND || action[i] == DOUBL){
             // players who win blackJack earn 3:2
             if (players[i].getValue() == 21 && dealerValue != 21) {
-                players[i].addChips(players[i].getBet() * 2.5);
-                printf("■ %s [%d] hits blackjack & wins %d chips.\n", players[i].getName().c_str(), players[i].getValue(), players[i].getBet() * 1.5);
+                players[i].addChips(players[i].getBet() * 1.5);
+                printf("● %s [%d] hits blackjack & wins %d chips.\n", players[i].getName().c_str(), players[i].getValue(), int(players[i].getBet() * 1.5));
             }
             // players who beat dealer earn 1:1
             else if (dealerValue > 21 || dealerValue < players[i].getValue()){
-                players[i].addChips(players[i].getBet() * 2);
+                players[i].addChips(players[i].getBet());
                 printf("● %s [%d] beats Dealer & wins %d chips.\n", players[i].getName().c_str(), players[i].getValue(), players[i].getBet());
             }
             // players who tie with dealer earn nothing
@@ -385,9 +391,7 @@ void playGame(Player players[], Dealer dealer, int size){
             }
             // players who lose to dealer lose their bet
             else {
-                int earnings = players[i].getBet() * -1;
-                players[i].addChips(players[i].getBet() * -1);
-                printf("◌ %s [%d] gets beat & loses %d chips.\n", players[i].getName().c_str(), players[i].getValue(), players[i].getBet());
+                printf("○ %s [%d] gets beat & loses %d chips.\n", players[i].getName().c_str(), players[i].getValue(), players[i].getBet());
             }
         }
         // surrenderers lose half their bet
@@ -397,8 +401,7 @@ void playGame(Player players[], Dealer dealer, int size){
         }
         // those who bust lose their bet
         else {
-            players[i].addChips(players[i].getBet() * -1);
-            printf("◌ %s [%d] bust & loses %d chips.\n", players[i].getName().c_str(), players[i].getValue(), players[i].getBet());
+            printf("○ %s [%d] bust & loses %d chips.\n", players[i].getName().c_str(), players[i].getValue(), players[i].getBet());
         }
     }
     cout << endl;
