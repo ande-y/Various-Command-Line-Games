@@ -11,6 +11,7 @@
         "string": "cpp",
         "format": "cpp",
         "deque": "cpp",
-        "unordered_map": "cpp"
+        "unordered_map": "cpp",
+        "chrono": "cpp"
     }
 }

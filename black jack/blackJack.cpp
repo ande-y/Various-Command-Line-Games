@@ -1,10 +1,12 @@
 #include <iostream>
 #include <vector>
 #include <ctime>
+#include <chrono>
+#include <thread>
 using namespace std;
 
-string suits[] = {"♣", "♦", "♥", "♠"};
-string ranks[] = {"2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"};
+string SUITS[] = {"♣", "♦", "♥", "♠"};
+string RANKS[] = {"2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"};
 
 typedef string cardGraphics[5][7]; 
 cardGraphics hide = 
@@ -20,12 +22,17 @@ cardGraphics show =
     {"┃", " ", " ", " ", " ", " ", "┃"},
     {"┗", "━", "━", "━", "━", "━", "┛"}};
 
-#define HIT 0
-#define BUST 1
+#define NONE -1
+#define BUST 0
+#define HIT 1
 #define STAND 2
-#define DOUBL 3
-#define DOUBLED 4
-#define SRNDR 5
+#define SRNDR 3
+#define DOUBL 4
+
+void thrErr(string s){
+    cout << "\n<!> " << s << endl;
+    exit(0);
+}
 
 struct Card {
     int suit;
@@ -43,6 +50,8 @@ class Dealer {
         resetGame();
     }
 
+    vector<Card> getHand(){ return hand; }
+
     void resetGame(){
         deck.clear();
         for (int i = 0; i < 4; i++){
@@ -59,8 +68,13 @@ class Dealer {
         return c;
     }
 
+    void revealCards(){
+        hand[0].faceUp = true;
+    }
+
     void hit(Card c){
-        if (hand.size() > 1) c.faceUp = true;
+        if (hand.size() > 0) c.faceUp = true;
+// c.faceUp = true;        /// DEBUG ALWAYS SHOW CARDS
         hand.push_back(c);
     }
 
@@ -98,16 +112,41 @@ class Player {
         chips = c;
     }
 
+    string getName(){ return name; }
     int getBet(){ return bet; }
+    int getChips(){ return chips; }
+    vector<Card> getHand(){ return hand; }
     void doubleBet(){ bet *= 2; }
     void addChips(int change){ chips += change; }
 
     void hit(Card c){
         if (playable) c.faceUp = true;
+// c.faceUp = true;        /// DEBUG ALWAYS SHOW CARDS
         hand.push_back(c);
     }
 
-    int think(int dealerValue){
+    void revealCards(){
+        for (Card& c : hand) c.faceUp = true;
+    }
+
+    int think(int dealerValue, bool firstTurn){
+        if (playable){
+            int choice;
+            if (firstTurn){
+                do {
+                    cout << "pick action [1|Hit][2|Stand][3|surrender][4|double down]: ";
+                    cin >> choice;
+                } while(choice < 1 || choice > 4);
+            }
+            else {
+                do {
+                    cout << "pick action [1|Hit][2|Stand][3|surrender]: ";
+                    cin >> choice;
+                } while(choice < 1 || choice > 3);
+            }
+            return choice;            
+        }
+
         return HIT;     // PLACEHOLDER
     }
 
@@ -125,54 +164,182 @@ class Player {
         }
         return sum;
     }
-
 };
 
-void playGame(Player players[], Dealer dealer){
-    int size =  sizeof(players) / sizeof(players[0]);
+void printTable(Player players[], Dealer dealer, int size, int action[]){
+    system("cls");
 
+    cout << "DEALER\n";
+    // print dealer's cards
+    vector<Card> hand = dealer.getHand();
+    for (int r = 0; r < 5; r++){
+        for (int i = 0; i < hand.size(); i++){
+            for (int c = 0; c < 4; c++){
+                // if card is face down, no need to print symbols
+                if (!hand[i].faceUp) cout << hide[r][c];
+                // print rank at to left of card, if it's 10, leave an extra space 
+                else if (r == 1 && c == 1) cout << RANKS[hand[i].rank];
+                else if (hand[i].rank == 8 && r == 1 && c == 2);
+                // print suit at the middle of the card
+                else if (r == 2 && c == 3) cout << SUITS[hand[i].suit];
+                // print anything else
+                else cout << show[r][c];
+            }
+        }
+        Card last = hand.back();
+        for (int c = 4; c < 7; c++){
+            if (!last.faceUp) cout << hide[r][c];
+            else if (r == 3 && c == 5) cout << RANKS[last.rank];
+            else if (last.rank == 8 && r == 3 && c == 4);
+            else cout << show[r][c];
+        }
+        cout << endl;
+    }
+
+    // print players' action
+    for (int i = 0; i < size; i++){
+        string msg = "";
+        if (action[i] == BUST) msg = "▼ Bust";
+        else if (action[i] == HIT) msg = "▼ Hit";
+        else if (action[i] == STAND) msg = "▼ Stand";
+        else if (action[i] == SRNDR) msg = "▼ Surrender";
+        else if (action[i] == DOUBL) msg = "▼ Double Down";
+
+        int handSize = players[i].getHand().size();
+        int buffer = (4 * handSize) + 8 - msg.length();
+
+        cout << msg;
+        for (int j = 0; j < buffer; j++) cout << ' ';
+    }
+    cout << endl;
+
+    // print players' names
+    for (int i = 0; i < size; i++){
+        int handSize = players[i].getHand().size();
+        int buffer = (4 * handSize) + 3 - players[i].getName().length();
+
+        cout << players[i].getName() << "   ";
+        for (int j = 0; j < buffer; j++) cout << ' ';
+    }
+    cout << endl;
+
+    // print players' chips
+    for (int i = 0; i < size; i++){
+        int handSize = players[i].getHand().size();
+        int buffer = (4 * handSize) + 3 - to_string(players[i].getChips()).length();
+
+        cout << players[i].getChips() << "   ";
+        for (int j = 0; j < buffer; j++) cout << ' ';
+    }
+    cout << endl;
+
+    // print players' cards
+    for (int r = 0; r < 5; r++){
+        for (int i = 0; i < size; i++){
+            hand = players[i].getHand();
+            for (int j = 0; j < hand.size(); j++){
+                for (int c = 0; c < 4; c++){
+                    if (!hand[j].faceUp) cout << hide[r][c];
+                    else if (r == 1 && c == 1) cout << RANKS[hand[j].rank];
+                    else if (hand[j].rank == 8 && r == 1 && c == 2);
+                    else if (r == 2 && c == 3) cout << SUITS[hand[j].suit];
+                    else cout << show[r][c];
+                }
+            }
+            Card last = hand.back();
+            for (int c = 4; c < 7; c++){
+                if (!last.faceUp) cout << hide[r][c];
+                else if (r == 3 && c == 5) cout << RANKS[last.rank];
+                else if (last.rank == 8 && r == 3 && c == 4);
+                else cout << show[r][c];
+            }
+            // buffer between each player's hands
+            cout << "   "; 
+        }
+        cout << endl;
+    }
+}
+
+void playGame(Player players[], Dealer dealer, int size){
     // everyone draws 2 cards
     for (int i = 0; i < 2; i++){
         dealer.hit(dealer.giveCard());
         for (int j = 0; j < size; j++){
-            players[i].hit(dealer.giveCard());
+            players[j].hit(dealer.giveCard());
         }
     }
 
     int action[size];
-    for (int a : action) a = HIT;
+    for (int& a : action) a = NONE;
+    printTable(players, dealer, size, action);
 
     int stopped = 0;
+    bool firstTurn = true;
     while (stopped < size){
+        for (int& a : action){
+            if (a == HIT) a = NONE;
+        }
+
         for (int i = 0; i < size; i++){
-            if (action[i] != HIT) continue;
+            if (action[i] != HIT && action[i] != NONE) continue;
+            if (action[i] == DOUBL) return;
 
-            action[i] = players[i].think(dealer.getValue(false));
+            action[i] = players[i].think(dealer.getValue(false), firstTurn);
 
-            if (action[i] == HIT || action[i] == DOUBL) players[i].hit(dealer.giveCard());
-            if (action[i] == DOUBL){
-                players[i].doubleBet();
-                action[i] = STAND;
+            if (action[i] == HIT || action[i] == DOUBL){
+                players[i].hit(dealer.giveCard());
             }
 
-            if (action != HIT) stopped++;
+            printTable(players, dealer, size, action);
+            if (action[i] != HIT) this_thread::sleep_for(std::chrono::milliseconds(1000));
+            else this_thread::sleep_for(std::chrono::milliseconds(1500));
+            
+            if (players[i].getValue() > 21) action[i] = BUST;
+
+            if (action[i] == DOUBL){
+                if (!firstTurn) thrErr ("playGame:while: attempt to double down after 1st turn");
+                else players[i].doubleBet();
+            }
+
+            if (action[i] != HIT) stopped++;
         }
+        firstTurn = false;
     }
+    // all player finish drawing card at this point
+
+    for (int i = 0; i < size; i++) players[i].revealCards();
+    printTable(players, dealer, size, action);
+    this_thread::sleep_for(std::chrono::milliseconds(1500));
+    
+    // dealer begins drawing cards
+    dealer.revealCards();
+    printTable(players, dealer, size, action);
+    this_thread::sleep_for(std::chrono::milliseconds(1500));
     
     while (dealer.getValue(true) < 17){
         dealer.hit(dealer.giveCard());
+        printTable(players, dealer, size, action);
+        this_thread::sleep_for(std::chrono::milliseconds(1500));
     }
 
     int dealerValue = dealer.getValue(true);
     for (int i = 0; i < size; i++){
+        // evaluate players who stood
         if (action[i] == STAND){
-            if (dealerValue < players[i].getValue()) players[i].addChips(players[i].getBet() * 2);
+            // players who win blackJack earn 3:2
+            if (players[i].getValue() == 21 && dealerValue != 21) players[i].addChips(players[i].getBet() * 2.5);
+            // players who beat dealer earn 1:1
+            else if (dealerValue > 21 || dealerValue < players[i].getValue()) players[i].addChips(players[i].getBet() * 2);
+            // players who tie with dealer earn nothing
             else if (dealerValue == players[i].getValue()) players[i].addChips(players[i].getBet());
+            // players who lose to dealer lose their bet
             else players[i].addChips(players[i].getBet() * -1);
         }
+        // surrenderers lose half their bet
         else if (action[i] == SRNDR){
             players[i].addChips(players[i].getBet() / 2);
         }
+        // those who bust lose their bet
         else players[i].addChips(players[i].getBet() * -1);
     }
 }
@@ -186,15 +353,17 @@ int main(){
     Player p3(false, "opp3", 100);
 
     Player players[] = {p0, p1, p2, p3};
+    int size = sizeof(players) / sizeof(players[0]);
+
     Dealer dealer;
 
-   playGame(players, dealer);
+    playGame(players, dealer, size);
 
     return 0;
 }
 
-// ┏━━━┏━━━━━┓ 
-// ┃2  ┃2    ┃ 
-// ┃  ♣┃  ♣  ┃  
-// ┃   ┃    2┃ 
-// ┗━━━┗━━━━━┛ 
+// ┏━━━┏━━━┏━━━┏━━━━━┓ 
+// ┃2  ┃2  ┃2  ┃2    ┃ 
+// ┃  ♣┃  ♣┃  ♣┃  ♣  ┃ 
+// ┃   ┃   ┃   ┃    2┃ 
+// ┗━━━┗━━━┗━━━┗━━━━━┛ 
