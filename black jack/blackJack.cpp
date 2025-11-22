@@ -107,11 +107,8 @@ class Player {
     vector<Card> hand;
 
     public:
-    Player(bool p,string n, int c){
-        playable = p;
-        name = n;
-        chips = c;
-    }
+    Player(bool a,string b, int c):
+        playable(a), name(b), chips(c){}
 
     bool getPlayable(){ return playable; }
     string getName(){ return name; }
