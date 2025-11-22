@@ -1,6 +1,7 @@
 ## 2048 (popular mobile game from 2014)
 
 <!> *This program uses the library conio.h, which doesn't seem to be available on MacOS.*  
+<!> *This program contains the `system("cls")` Windows command, replace it with `system("clear")` if you're on MacOS.*  
 <!> *This program prints unicode character. Execute `chcp 65001` in the terminal before running the game.*
 
 **CODE CONCEPTS**  

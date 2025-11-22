@@ -118,12 +118,22 @@ class Player {
     int getBet(){ return bet; }
     int getChips(){ return chips; }
     vector<Card> getHand(){ return hand; }
-    void doubleBet(){ bet *= 2; }
     void addChips(int change){ chips += change; }
 
     void reset(){
         bet = 0;
         hand.clear();
+    }
+
+    void doubleBet(){
+        if (chips - bet < 1){
+            bet += chips;
+            chips = 0;
+        }
+        else {
+            chips -= bet;
+            bet *= 2;
+        }
     }
 
     int setBet(){
