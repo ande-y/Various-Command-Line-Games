@@ -179,7 +179,6 @@ class Player {
             return choice;            
         }
 
-        cout << dealerValue << "!!!!!!!!";
         int myValue = getValue();
         if (myValue == 21) return STAND;
         if (dealerValue > myValue) return HIT;
