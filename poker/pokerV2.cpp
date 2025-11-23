@@ -45,6 +45,11 @@ cardGraphics
                 {"┊", " ", " ", " ", " ", " ", "┊"},
                 {"└", "┄", "┄", "┄", "┄", "┄", "┘"}};
 
+void thrErr(string s){
+    cout << "<!> " << s << endl;
+    exit(1);
+}
+
 struct Card {
     int suit;
     int rank;
@@ -82,6 +87,7 @@ class Table {
 
     void drawCommunityCard(Card c){
         communityCards.push_back(c);
+        if (communityCards.size() > 5) thrErr("Table:drawCommunityCard: attempted to draw more than 5 cards");
     }
 };
 
@@ -95,15 +101,26 @@ class Player {
 
     public:
     Player(bool a, string b, int c):
-        playable(a), name(b), chips(c){}
+        playable(a), name(b), chips(c){
+        if (name.length() > 13) thrErr("Player:Player: player name too long (max 13 chars)");
+    }
     
     bool getPlayable(){ return playable; }
     string getName(){ return name; }
     int getChips(){ return chips; }
     Card getHand(int i){ return hand[i]; }
     int getBet(){ return bet; }
+    void setChips(int a){ chips += a; }
 
+    void reset(){
+        bet = 0;
+    }
+    
     void recieveCards(Card c, Card d){
+        if (playable){
+            c.show = true;
+            d.show = true;
+        }
         hand[0] = c;
         hand[1] = d;
     }
@@ -126,38 +143,47 @@ class Player {
     }
 
     int makeDecision(int& currentBet){
+        int costToCall = currentBet - bet;
         int decision;
         if (playable){
             do {
                 cout << "► Make decision\n  [0:Fold][1:Call][2:Check][3:Raise][4:AllIn]: ";
                 cin >> decision;
-            } while (decision < 0 && decision > 4);
+            } while (decision < 0 || decision > 4);
             if (decision == RAISE){
                 int raiseBy;
                 do {
                     cout << "► Raise by: ";
                     cin >> raiseBy;
-                } while (raiseBy < 0 && raiseBy > chips);
+                } while (raiseBy < 0 || raiseBy > chips - costToCall);
 
-                chips -= raiseBy;
+                chips -= raiseBy + costToCall;
                 currentBet += raiseBy;
                 bet = currentBet;
             }
         }
         else {
-            decision = CALL;
+            decision = CALL;        // PLACEHOLDER
+
+            // calculateChances();
         }
 
         if (decision == ALLIN){
             chips = 0;
-            currentBet += chips;
+            currentBet += chips - costToCall;
+            bet = currentBet;
         }
         else if (decision == CALL){
-            chips -= currentBet - bet;
+            chips -= costToCall;
             bet = currentBet;
         }
 
         return decision;
+    }
+
+    void revealCards(){
+        hand[0].show = true;
+        hand[1].show = true;
     }
 
     int calculateHandValue(vector<Card> communityCards){
@@ -308,7 +334,7 @@ void printTable(vector<Player> players, vector<Card> communityCards, int betSize
             switch (action[i]){
             case FOLD: msg = "▼ folded"; break;
             case CALL: msg = "▼ called"; break;
-            case CHECK: msg = "▼ checks"; break;
+            // case CHECK: msg = "▼ checks"; break;
             case RAISE: msg = "▼ raised"; break;
             case ALLIN: msg = "▼ is all in"; break;
             }
@@ -333,12 +359,13 @@ void printTable(vector<Player> players, vector<Card> communityCards, int betSize
 
     // print players' cards
     for (int r = 0; r < 5; r++){
-        for (int i = 0; i < size; i++){
-            for (int j = 0; j < 2; j++){
+        for (int i = 0; i < size; i++){ // player index
+            for (int j = 0; j < 2; j++){ // player's hand's cards' index
                 Card card = players[i].getHand(j);
                 for (int c = 0; c < 4; c++){
-                    // if (!card.show) cout << hideCard[r][c];
-                    if (r == 1 && c == 1) cout << RANKS[card.rank];
+                    if (!card.show && action[i] == FOLD) cout << foldCard[r][c];
+                    else if (!card.show) cout << hideCard[r][c];
+                    else if (r == 1 && c == 1) cout << RANKS[card.rank];
                     else if (card.rank == 8 && r == 1 && c == 2);
                     else if (r == 2 && c == 3) cout << SUITS[card.suit];
                     else cout << showCard[r][c];
@@ -347,8 +374,9 @@ void printTable(vector<Player> players, vector<Card> communityCards, int betSize
 
             Card last = players[i].getHand(1);
             for (int c = 4; c < 7; c++){
-                // if (!last.show) cout << hideCard[r][c];
-                if (r == 3 && c == 5) cout << RANKS[last.rank];
+                if (!last.show && action[i] == FOLD) cout << foldCard[r][c];
+                else if (!last.show) cout << hideCard[r][c];
+                else if (r == 3 && c == 5) cout << RANKS[last.rank];
                 else if (last.rank == 8 && r == 3 && c == 4);
                 else cout << showCard[r][c];
             }
@@ -384,7 +412,7 @@ void bettingCycle(vector<Player>& players, Table table, vector<int>& action, int
             if (decision == RAISE){
                 settled = 1;
                 for (int& a: action){
-                    if (a != FOLD) a = NONE;
+                    if (a != FOLD && a != RAISE) a = NONE;
                     else settled++;
                 }
             }
@@ -435,15 +463,20 @@ void playRound(vector<Player>& players, Table table, int dealer, int initialBet)
     table.drawCommunityCard(table.getCard());
     bettingCycle(players, table, action, turn, currentBet);
 
+    // everyone reveals their cards
+    for (Player& p: players) p.revealCards();
+    printTable(players, table.getCommunityCards(), currentBet, action, turn);
+
     // calculate each player's hand combination
     vector<int> handValues;
     vector<Card> communityCards = table.getCommunityCards();
     for (Player p: players) handValues.push_back(p.calculateHandValue(communityCards));
 
-    // determine the best hand(s)
+    // determine the best hand(s), exclude plays who folded
     vector<int> winner;
     int bestHand = 0;
     for (int i = 0; i < size; i++){
+        if (action[i] == FOLD) continue;
         if (handValues[i] > bestHand){
             winner.clear();
             bestHand = handValues[i];
@@ -454,24 +487,44 @@ void playRound(vector<Player>& players, Table table, int dealer, int initialBet)
         }
     }
 
-    // print the winner(s)
-    if (winner.size() > 1){
-        cout << "□ ";
-        for (int i = 0; i < winner.size(); i++){
-            if (i != 0) cout << ", ";
+    // print the winner(s) & give them the pot
+    int sum = 0;
+    for (Player p: players) sum += p.getBet();
+    int leftover = sum;
+
+    int numWinners = winner.size();
+    cout << "□ ";
+    for (int i = 0; i < winner.size(); i++){
+        if (numWinners > 1){
+            if (i != 0 && numWinners != 2) cout << ", ";
+            if (i == 1 && numWinners == 2) cout << ' ';
             if (i + 1 == winner.size()) cout << "& ";
-            cout << players[winner[i]].getName();
         }
-        cout << " win with ";
+        cout << players[winner[i]].getName();
+
+        // players who couldn't match the bet only earn proportion to what they put in
+        int spoils;
+        if (numWinners > 1) spoils = int((sum / numWinners) * (players[winner[i]].getBet() / double(currentBet)));
+        else spoils = sum;
+
+        players[winner[i]].setChips(spoils);
+        leftover -= spoils;
+        printf("{%d}", spoils);
+
+        // leftover chips would be returned amongst everyone
+        for (Player& p: players) p.setChips(leftover / size);
     }
-    else cout << "□ " << players[winner[0]].getName() << " wins with a ";
+    (numWinners  > 1) ? cout << " win with " : cout << " wins with a ";
     translate(handValues[winner[0]]);
 
-    // list out what combinations other players got
+    // list out what combinations other players got & reset everyone's bet
     cout << endl;
     for (int i = 0; i < size; i++){
-        cout << players[i].getName() << " - ";
+        (action[i] == FOLD) ? cout << "○ " : cout << "● ";
+        printf("%-13s", players[i].getName().c_str());
         translate(handValues[i]);
+
+        players[i].reset();
     }
     cout << endl;
 }
@@ -491,7 +544,38 @@ int main(){
     int dealer = rand() % players.size(); 
     int initialBet = 4;
 
-    playRound(players, table, dealer, initialBet);
+    while (true){
+        playRound(players, table, dealer, initialBet);
 
+        // remove players that lost all their chips
+        for (int i = 0; i < players.size(); i++){
+            if (players[i].getChips() <= 0){
+                cout << players[i].getName() << " left the table having lost everything :(\n";
+                if (players[i].getPlayable()) goto end;
+                players.erase(players.begin() + i);
+                i--;
+            }
+            // end the game if you're the only one left at the table
+            if (players.size() == 1){
+                cout << "You win having taken everyone's chips\n";
+                goto end;
+            } 
+        }
+        
+        bool another;
+        do {
+            cout << "► Play another round? [1:Yes][0:No]: ";
+            cin >> another;
+        } while (another != 1 && another != 0);
+        if (!another){
+            cout << "You left the table\n";
+            goto end; 
+        } 
+
+        dealer = (dealer + 1) % players.size();
+        initialBet = int(initialBet * 1.5);
+    }
+
+    end:
     return 0;
 }
