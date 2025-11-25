@@ -50,6 +50,12 @@ void thrErr(string s){
     exit(1);
 }
 
+// struct personality {
+//     double confidence;      // consideration to raise when own hand's value is high
+//     double paranoia;        // consideration to fold when community cards' value is high
+//     double recklessness;    // random chance to do something dumb
+// };
+
 struct Card {
     int suit;
     int rank;
@@ -125,11 +131,12 @@ class Player {
         hand[1] = d;
     }
 
-    int blindBet(int currentBet){
+    int blindBet(int currentBet, int type){
         int betSize;
         if (playable){
+            string blind = (type == 1) ? "big" : "small";
             do {
-                cout << "□ The current bet is " << currentBet << "\n► Make an blind bet: ";
+                cout << "□ The current bet is " << currentBet << "\n► Make an " << blind << " bet: ";
                 cin >> betSize;
             } while (betSize < currentBet || betSize >= chips);
         }
@@ -142,7 +149,7 @@ class Player {
         return betSize;
     }
 
-    int makeDecision(int& currentBet){
+    int makeDecision(int& currentBet, vector<Card> communityCard){
         int costToCall = currentBet - bet;
         int decision;
         if (playable){
@@ -165,12 +172,15 @@ class Player {
         else {
             decision = CALL;        // PLACEHOLDER
 
-            // calculateChances();
+            int myValue = calculateHandValue(communityCard);
+
+
+            // calculateChances(communityCard);
         }
 
         if (decision == ALLIN){
-            chips = 0;
             currentBet += chips - costToCall;
+            chips = 0;
             bet = currentBet;
         }
         else if (decision == CALL){
@@ -186,12 +196,71 @@ class Player {
         hand[1].show = true;
     }
 
+    void getStatistics(vector<Card>& allCards, int reccuringSuits[], int reccuringRanks[], int& suitOfFlush, vector<int>& largestOfStraight){
+        // sort all cards by rank largest to smallest 
+        int cardsNum = allCards.size();
+        for (int i = 0; i < cardsNum; i++){
+            for (int j = 0; j < cardsNum - 1; j++){
+                if (allCards[j].rank < allCards[j + 1].rank) swap(allCards[j], allCards[j + 1]);
+            }
+        }
+
+        // store data on suits, ranks, flush, & straights
+        for (Card c: allCards){
+            reccuringSuits[c.suit]++;
+            reccuringRanks[c.rank]++;
+        }
+        for (int i = 0; i < 4; i++) if (reccuringSuits[i] >= 5) suitOfFlush = i;
+
+        int inSequence = 0;
+        for (int i = 12; i >= 0; i--){
+            (reccuringRanks[i] > 0) ? inSequence++ : inSequence = 0;
+            if (inSequence >= 5) largestOfStraight.push_back(i + 4);
+        }
+    }
+
+    void f1(vector<Card> communityCards){
+        vector<Card> allAvailableCards = communityCards;
+        allAvailableCards.push_back(hand[0]); 
+        allAvailableCards.push_back(hand[1]);
+
+        vector<double> allChances = f2(communityCards);
+        vector<double> myChances = f2(allAvailableCards);
+
+        for (int i = 0; i < 10; i++){
+
+        }
+    }
+
+    vector<double> f2(vector<Card> cardSet){
+        // structures storing statistics required to find patterns
+        int reccuringSuits[4] = {0, 0, 0, 0};
+        int reccuringRanks[13] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        int suitOfFlush = NONE;
+        vector<int> largestOfStraight;
+        // sort the cards & get the statistics of the cards
+        getStatistics(cardSet, reccuringSuits, reccuringRanks, suitOfFlush, largestOfStraight);
+
+        vector<double> probability;
+        // probability.push_back(checkRoyalFlush());
+        // probability.push_back(checkStraightFlush());
+        // probability.push_back(checkFourOfKind());
+        // probability.push_back(checkFullHouse());
+        // probability.push_back(checkFlush());
+        // probability.push_back(checkStraight());
+        // probability.push_back(checkThreeOfKind());
+        // probability.push_back(checkTwoPairs());
+        // probability.push_back(checkSinglePair());
+        // probability.push_back(getHighCard());        // this not a probability
+
+        return probability;
+    }
+
     int calculateHandValue(vector<Card> communityCards){
         vector<Card> allAvailableCards = communityCards;
         allAvailableCards.push_back(hand[0]); 
         allAvailableCards.push_back(hand[1]);
 
-        // sort all cards by rank largest to smallest 
         int cardsNum = allAvailableCards.size();
         for (int i = 0; i < cardsNum; i++){
             for (int j = 0; j < cardsNum - 1; j++){
@@ -199,7 +268,7 @@ class Player {
             }
         }
 
-        // store data on suits, ranks, flush, & straights
+        // structures storing statistics required to find patterns
         int reccuringSuits[4] = {0, 0, 0, 0};
         int reccuringRanks[13] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         for (Card c: allAvailableCards){
@@ -209,16 +278,15 @@ class Player {
         int suitOfFlush = NONE;
         for (int i = 0; i < 4; i++) if (reccuringSuits[i] >= 5) suitOfFlush = i;
 
-        int inSequence = 0;
         vector<int> largestOfStraight;
+        int inSequence = 0;
         for (int i = 12; i >= 0; i--){
             (reccuringRanks[i] > 0) ? inSequence++ : inSequence = 0;
             if (inSequence >= 5) largestOfStraight.push_back(i + 4);
         }
-        
-        vector<Card> subset;
 
         // check for royal flush & straight flush
+        vector<Card> subset;
         if (suitOfFlush != NONE && !largestOfStraight.empty()){
             for (int desiredRank: largestOfStraight){
                 for (Card c: allAvailableCards){
@@ -228,7 +296,7 @@ class Player {
                     }
                 }
                 if (subset.size() >= 5){
-                    if (subset[0].rank == 12) return ROYALFLUSH;
+                    if (subset[0].rank == 12) return ROYALFLUSH + suitOfFlush;
                     else return STRAIGHTFLUSH + subset[0].rank;
                 }
             }
@@ -281,7 +349,7 @@ class Player {
 };
 
 void translate(int i){
-        if (i >= ROYALFLUSH) cout << "Royal Flush [A";
+        if (i >= ROYALFLUSH) cout << "Royal Flush [A][" << SUITS[i % 10000];
         else if (i >= STRAIGHTFLUSH) cout << "Straight Flush [" << RANKS[i % 10000];
         else if (i >= FOUROFKIND) cout << "Four of a Kind [" << RANKS[i % 10000];
         else if (i >= FULLHOUSE) cout << "Full House [" << RANKS[(i % 10000) / 100] << "][" << RANKS[i % 100];
@@ -395,7 +463,7 @@ void bettingCycle(vector<Player>& players, Table table, vector<int>& action, int
     int settled = 0;
 
     for (int a: action){
-        if (a == FOLD) settled++;
+        if (a == FOLD || a == ALLIN) settled++;
     }
 
     while (settled < size){
@@ -405,7 +473,7 @@ void bettingCycle(vector<Player>& players, Table table, vector<int>& action, int
             if (action[turn] != NONE) continue;
 
             // betSize will be pass by reference for when players raise
-            int decision = players[turn].makeDecision(betSize); 
+            int decision = players[turn].makeDecision(betSize, table.getCommunityCards()); 
             action[turn] = decision;
 
             // raising will cause everyone who's still playing to decide again
@@ -428,9 +496,9 @@ void bettingCycle(vector<Player>& players, Table table, vector<int>& action, int
             if (a == CHECK) a = NONE;
         }
     }
-    // folding is permanant, no more actions for the rest of the round
+    // folding & going all in is permanant, no more actions for the rest of the round
     for (int& a: action){
-        if (a != FOLD) a = NONE;
+        if (a != FOLD && a != ALLIN) a = NONE;
     }
 }
 
@@ -440,12 +508,15 @@ void playRound(vector<Player>& players, Table table, int dealer, int initialBet)
 
     // initiate blind bets
     int turn = (dealer + 1) % size;
-    currentBet = players[turn].blindBet(currentBet);
+    currentBet = players[turn].blindBet(currentBet, 1);
     turn = (turn + 1) % size;
-    currentBet = players[turn].blindBet(currentBet);
+    currentBet = players[turn].blindBet(currentBet, 2);
 
     vector<int> action;
     for (int i = 0; i < size; i++) action.push_back(NONE);
+    
+    // if user's turn is after the big blind, user will be prompt to make decision without seeing their cards 
+    if (players[turn + 1].getPlayable()) printTable(players, table.getCommunityCards(), currentBet, action, turn);
 
     for (Player& p: players) p.recieveCards(table.getCard(), table.getCard());
     bettingCycle(players, table, action, turn, currentBet);
@@ -546,10 +617,12 @@ int main(){
 
     while (true){
         playRound(players, table, dealer, initialBet);
+        dealer = (dealer + 1) % players.size();
+        initialBet = int(initialBet * 1.5);
 
         // remove players that lost all their chips
         for (int i = 0; i < players.size(); i++){
-            if (players[i].getChips() <= 0){
+            if (players[i].getChips() <= 0 || players[i].getChips() < initialBet){
                 cout << players[i].getName() << " left the table having lost everything :(\n";
                 if (players[i].getPlayable()) goto end;
                 players.erase(players.begin() + i);
@@ -571,11 +644,9 @@ int main(){
             cout << "You left the table\n";
             goto end; 
         } 
-
-        dealer = (dealer + 1) % players.size();
-        initialBet = int(initialBet * 1.5);
     }
 
     end:
+    cout << endl;
     return 0;
 }
