@@ -224,15 +224,17 @@ class Player {
         allAvailableCards.push_back(hand[0]); 
         allAvailableCards.push_back(hand[1]);
 
-        vector<double> allChances = f2(communityCards);
-        vector<double> myChances = f2(allAvailableCards);
+        int remainingDraws = 5 - communityCards.size();
+
+        vector<double> allChances = f2(communityCards, remainingDraws);
+        vector<double> myChances = f2(allAvailableCards, remainingDraws);
 
         for (int i = 0; i < 10; i++){
 
         }
     }
 
-    vector<double> f2(vector<Card> cardSet){
+    vector<double> f2(vector<Card> cardSet, int remainingDraws){
         // structures storing statistics required to find patterns
         int reccuringSuits[4] = {0, 0, 0, 0};
         int reccuringRanks[13] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -241,12 +243,20 @@ class Player {
         // sort the cards & get the statistics of the cards
         getStatistics(cardSet, reccuringSuits, reccuringRanks, suitOfFlush, largestOfStraight);
 
+        int numCards = cardSet.size();
+
         vector<double> probability;
         // probability.push_back(checkRoyalFlush());
         // probability.push_back(checkStraightFlush());
         // probability.push_back(checkFourOfKind());
         // probability.push_back(checkFullHouse());
         // probability.push_back(checkFlush());
+        int mostReccurence = 0;
+        for (int i: reccuringSuits){
+            if (mostReccurence < i) mostReccurence = i;
+        }
+        double chance = 5 - mostReccurence;
+        chance = (chance <= 0) ? 1 : pow(.25, chance); 
         // probability.push_back(checkStraight());
         // probability.push_back(checkThreeOfKind());
         // probability.push_back(checkTwoPairs());
