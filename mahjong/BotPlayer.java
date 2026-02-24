@@ -1,6 +1,14 @@
 package mahjong;
 
 public class BotPlayer extends Player{
+    public BotPlayer(){
+        super();
+    }
+
+    public int askToSteal(){
+        return 1;
+    }
+
     public void makeDecision(){
         int[][] tileCounter = 
             {{0, 0, 0, 0, 0, 0, 0, 0, 0},

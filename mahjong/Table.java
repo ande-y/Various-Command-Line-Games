@@ -49,6 +49,7 @@ public class Table {
 
     public ArrayList<Tile> getdiscardedTiles(){ return discardedTiles; }
     public int[][] getDiscardedTilesCounter(){ return discardedTilesCounter; }
+    public boolean noMoreTiles(){ return wall.isEmpty(); }
 
     public Tile giveTile(){
         return wall.remove(wall.size() - 1);
