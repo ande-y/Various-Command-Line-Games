@@ -1,9 +1,9 @@
 package mahjong;
 
 public class Tile {
-    private int suit;
-    private int rank;
-    private String symbol;
+    private final int suit;
+    private final int rank;
+    private final String symbol;
 
     public Tile(int s, int r, String sym){
         suit = s;
