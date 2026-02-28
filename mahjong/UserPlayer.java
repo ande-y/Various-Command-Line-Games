@@ -9,10 +9,13 @@ public class UserPlayer extends Player {
 
     public Tile makeDecision(){
         Scanner scan = new Scanner(System.in);
-        int index = scan.nextInt();
+        int index;
+        do {
+            index = scan.nextInt();
+        } while (index < 1 || index > hand.size());
         scan.close();
 
-        return hand.remove(index + 1);
+        return hand.remove(index - 1);
     }
 
     public int askToSteal(int playThatCanChow){

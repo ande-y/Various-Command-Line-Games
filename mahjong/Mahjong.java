@@ -50,10 +50,20 @@ public class Mahjong {
 
         // {{"🀇", "🀈", "🀉", "🀊", "🀋", "🀌", "🀍", "🀎", "🀏"},
 
+        System.out.flush();
+
         players[0].pickTile(new Tile(0, 0, "🀇"));
         players[0].pickTile(new Tile(0, 0, "🀇"));
         players[0].pickTile(new Tile(0, 0, "🀇"));
         players[0].pickTile(new Tile(0, 0, "🀇"));
+        players[0].pickTile(new Tile(0, 1, "🀈"));
+        players[0].pickTile(new Tile(0, 1, "🀈"));
+        // players[0].pickTile(new Tile(0, 2, "🀈"));
+        // players[0].pickTile(new Tile(0, 2, "🀈"));
+        players[0].pickTile(new Tile(0, 3, "🀈"));
+        players[0].pickTile(new Tile(0, 3, "🀈"));
+        players[0].pickTile(new Tile(0, 3, "🀈"));
+        players[0].pickTile(new Tile(0, 3, "🀈"));
         players[0].debug();
         players[0].makeDecision();
         // players[0].debug();
