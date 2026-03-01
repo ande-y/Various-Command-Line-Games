@@ -5,7 +5,7 @@ import java.util.Random;
 
 public class Table {
     private ArrayList<Tile> wall = new ArrayList<>();
-    private String[][] tileIndex = 
+    private final String[][] tileIndex = 
         {{"🀇", "🀈", "🀉", "🀊", "🀋", "🀌", "🀍", "🀎", "🀏"},
          {"🀙", "🀚", "🀛", "🀜", "🀝", "🀞", "🀟", "🀠", "🀡"},
          {"🀐", "🀑", "🀒", "🀓", "🀔", "🀕", "🀖", "🀗", "🀘"},
@@ -13,8 +13,7 @@ public class Table {
          {"🀆", "🀅", "🀄"},
          {"🀢", "🀣", "🀤", "🀥"},
          {"🀦", "🀧", "🀨", "🀩"}};
-    private ArrayList<Tile> discardedTiles = new ArrayList<>();
-    private int[][] discardedTilesCounter = 
+    private int[][] discardedTilesCounter = // this data will also include shown tile
         {{0, 0, 0, 0, 0, 0, 0, 0, 0},
          {0, 0, 0, 0, 0, 0, 0, 0, 0},
          {0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -47,15 +46,22 @@ public class Table {
         // System.out.println(wall.size());
     }
 
-    public ArrayList<Tile> getdiscardedTiles(){ return discardedTiles; }
-    public int[][] getDiscardedTilesCounter(){ return discardedTilesCounter; }
+    public int[][] getDiscardedTilesCounter(){
+        int[][] deepCopy = {
+            discardedTilesCounter[0].clone(),
+            discardedTilesCounter[1].clone(),
+            discardedTilesCounter[2].clone(),
+            discardedTilesCounter[3].clone(),
+            discardedTilesCounter[4].clone()
+        };
+        return deepCopy; 
+    }
     public boolean noMoreTiles(){ return wall.isEmpty(); }
 
     public Tile giveTile(){
         return wall.remove(wall.size() - 1);
     }
     public void takeDiscard(Tile t){
-        discardedTiles.add(t);
         discardedTilesCounter[t.getSuit()][t.getRank()]++;
     }
 }

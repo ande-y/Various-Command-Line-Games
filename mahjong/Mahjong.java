@@ -39,7 +39,7 @@ public class Mahjong {
         }
         
         players[0].pickTile(table.giveTile());
-        players[0].makeDecision();
+        players[0].makeDecision(table);
         // players[0].debug();
 
         // playGame(table, players);
@@ -81,7 +81,7 @@ public class Mahjong {
         // turn player evaluates if they mahjong
         if (players[turn].getMahjong()) return new Status(COMPLETE, NOSTEAL);
 
-        Tile discard = players[turn].makeDecision();
+        Tile discard = players[turn].makeDecision(table);
 
         int playerThatStole = playersSteal(players, turn, discard);
 

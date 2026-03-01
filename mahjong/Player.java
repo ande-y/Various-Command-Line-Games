@@ -5,6 +5,7 @@ import java.util.ArrayList;
 abstract public class Player {
     protected final String name;
     protected ArrayList<Tile> hand = new ArrayList<>();
+    protected ArrayList<Tile> bonusTiles = new ArrayList<>();
     protected boolean mahjong = false;
 
     public Player(String n){
@@ -25,6 +26,6 @@ abstract public class Player {
     // public Tile dropTile(Tile t){
     //     return;
     // }
-    abstract public Tile makeDecision();
+    abstract public Tile makeDecision(Table table);
     abstract public int askToSteal(int playThatCanChow);
 }

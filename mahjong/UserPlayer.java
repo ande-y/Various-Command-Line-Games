@@ -7,7 +7,7 @@ public class UserPlayer extends Player {
         super(n);
     }
 
-    public Tile makeDecision(){
+    public Tile makeDecision(Table table){
         Scanner scan = new Scanner(System.in);
         int index;
         do {
