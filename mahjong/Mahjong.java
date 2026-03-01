@@ -34,39 +34,21 @@ public class Mahjong {
             new BotPlayer("a")
         };
 
-        // for (int i = 0; i < players.length; i++){
-        //     for (int j = 0; j < 13; j++) players[i].pickTile(table.giveTile());
-        // }
+        for (int i = 0; i < players.length; i++){
+            for (int j = 0; j < 13; j++) players[i].pickTile(table.giveTile());
+        }
+        
+        players[0].pickTile(table.giveTile());
+        players[0].makeDecision();
+        // players[0].debug();
 
         // playGame(table, players);
-
 
         // for (int i = 0; i <players.length; i++){
         //     if (players[i] instanceof UserPlayer) System.out.print("is user  ");
         //     else System.out.print("not user ");
         //     players[i].debug();
         // }
-
-
-        // {{"🀇", "🀈", "🀉", "🀊", "🀋", "🀌", "🀍", "🀎", "🀏"},
-
-        System.out.flush();
-
-        players[0].pickTile(new Tile(0, 0, "🀇"));
-        players[0].pickTile(new Tile(0, 0, "🀇"));
-        players[0].pickTile(new Tile(0, 0, "🀇"));
-        players[0].pickTile(new Tile(0, 0, "🀇"));
-        players[0].pickTile(new Tile(0, 1, "🀈"));
-        players[0].pickTile(new Tile(0, 1, "🀈"));
-        // players[0].pickTile(new Tile(0, 2, "🀈"));
-        // players[0].pickTile(new Tile(0, 2, "🀈"));
-        players[0].pickTile(new Tile(0, 3, "🀈"));
-        players[0].pickTile(new Tile(0, 3, "🀈"));
-        players[0].pickTile(new Tile(0, 3, "🀈"));
-        players[0].pickTile(new Tile(0, 3, "🀈"));
-        players[0].debug();
-        players[0].makeDecision();
-        // players[0].debug();
     }
 
     public static void playGame(Table table, Player[] players){
