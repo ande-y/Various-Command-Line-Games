@@ -39,7 +39,7 @@ public class Mahjong {
         }
         
         players[0].pickTile(table.giveTile());
-        players[0].makeDecision(table);
+        players[0].evaluate(table);
         // players[0].debug();
 
         // playGame(table, players);
