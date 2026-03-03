@@ -25,4 +25,5 @@ public class UserPlayer extends Player {
     public int askToSteal(int playThatCanChow){
         return 1;
     }
+
 }

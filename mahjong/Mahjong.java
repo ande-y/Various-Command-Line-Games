@@ -3,18 +3,18 @@ package mahjong;
 import java.util.Random;
 
 public class Mahjong {
-    public static final int NOSTEAL = -1;
-    public static final int CHOW = 0;
-    public static final int PONG = 1;
-    public static final int KONG = 2;
-    public static final int CHOWMAHJ = 3;
-    public static final int EYESMAHJ = 4;
-    public static final int PONGMAHJ = 5;
-    public static final int KONGMAHJ = 6;
+    private static final int NOSTEAL = -1;
+    private static final int CHOW = 0;
+    private static final int PONG = 1;
+    private static final int KONG = 2;
+    private static final int CHOWMAHJ = 3;
+    private static final int EYESMAHJ = 4;
+    private static final int PONGMAHJ = 5;
+    private static final int KONGMAHJ = 6;
 
-    public static final int INCOMPLETE = 0;
-    public static final int COMPLETE = 1;
-    public static final int TIE = 2;
+    private static final int INCOMPLETE = 0;
+    private static final int COMPLETE = 1;
+    private static final int TIE = 2;
 
     static class Status {
         int game;
@@ -39,7 +39,29 @@ public class Mahjong {
         }
         
         players[0].pickTile(table.giveTile());
+
+        // players[0].pickTile(new Tile(0, 2, "."));
+        // players[0].pickTile(new Tile(0, 4, "."));
+        // players[0].pickTile(new Tile(0, 5, "."));
+        // players[0].pickTile(new Tile(1, 2, "."));
+        // players[0].pickTile(new Tile(1, 3, "."));
+        // players[0].pickTile(new Tile(1, 6, "."));
+        // players[0].pickTile(new Tile(1, 6, "."));
+        // players[0].pickTile(new Tile(1, 7, "."));
+        // players[0].pickTile(new Tile(1, 8, "."));
+        // players[0].pickTile(new Tile(2, 1, "."));
+        // players[0].pickTile(new Tile(2, 4, "."));
+        // players[0].pickTile(new Tile(3, 2, "."));
+        // players[0].pickTile(new Tile(4, 0, "."));
+
+        // players[0].pickTile(new Tile(0, 1, "."));
+        // players[0].pickTile(new Tile(0, 2, "."));
+        // players[0].pickTile(new Tile(0, 4, "."));
+        // players[0].pickTile(new Tile(0, 6, "."));
+        // players[0].pickTile(new Tile(0, 8, "."));
+
         players[0].evaluate(table);
+
         // players[0].debug();
 
         // playGame(table, players);

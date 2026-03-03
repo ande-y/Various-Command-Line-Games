@@ -4,7 +4,7 @@
 <!> *This program prints unicode character. Execute `chcp 65001` in the terminal before running the game on Windows.*
 
 **CODE CONCEPTS**
-  - objects & classes
+  - object oriented programming
 
 **HOW TO PLAY**
   - this program plays the standard Hong Kong style (look up a video tutorial)

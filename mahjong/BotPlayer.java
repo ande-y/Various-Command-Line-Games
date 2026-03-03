@@ -3,18 +3,12 @@ package mahjong;
 import java.util.ArrayList;
 
 public class BotPlayer extends Player{
-    public static final int KONG = 4;
-    public static final int PONG = 3;
-    public static final int EYES = 2;
-    public static final int CHOW = 1;
-    public static final int JOINTPARTIAL = 0;
-    public static final int PARTEDPARTIAL = -1;
-
-    public static final int CRAKS = 0;
-    public static final int DOTS = 1;
-    public static final int STICKS = 2;
-    public static final int WIND = 3;
-    public static final int DRAGON = 4;
+    private static final int KONG = 4;
+    private static final int PONG = 3;
+    private static final int EYES = 2;
+    private static final int CHOW = 1;
+    private static final int JOINTPARTIAL = 0;
+    private static final int PARTEDPARTIAL = -1;
 
     private static class Meld {
         int type;
@@ -153,7 +147,7 @@ public class BotPlayer extends Player{
              {"🀢", "🀣", "🀤", "🀥"},
              {"🀦", "🀧", "🀨", "🀩"}};
         for (int i = 0; i < allPossiblePaths.size(); i++){
-            System.out.printf("%.4f\t", valuePerPossiblePlay.get(i));            
+            System.out.printf("%.1f\t", valuePerPossiblePlay.get(i));            
             ArrayList<Meld> possiblePlay = allPossiblePaths.get(i);
             printFancyMeldList(possiblePlay);
             System.out.print(" - [");
@@ -192,22 +186,23 @@ public class BotPlayer extends Player{
         boolean eyesComplete = false;
 
         // MAGIC NUMBERS FEILD
-        final double valKong =      2;
+        final double valKong =      2.5;
         final double valPong =      1.6;
         final double valEyes =      1.2;
         final double valChow =      1;
         final double valJoint =     .6;
         final double valParted =    .3;
 
-        final double MultPong =      .1;
-        final double MultEyes =      .1;
-        final double MultChow =      .1;
-        final double MultJoint =     .1;
-        final double MultParted =    .1;
+        final double MultPong =     .1;
+        final double MultEyes =     .1;
+        final double MultChow =     .1;
+        final double MultJoint =    .1;
+        final double MultParted =   .1;
 
         for (Meld meld: possiblePlay){
             int t = meld.type;
-            if (t <= KONG && t >= CHOW) meldsComplete++;
+            if (t <= KONG && t >= CHOW && t != EYES) meldsComplete++;
+            if (t == EYES) eyesComplete = true;
             
             double temp = 0;
             if (t == KONG) temp = valKong;
@@ -334,7 +329,7 @@ public class BotPlayer extends Player{
             memoEyes.clear();
             memoChows.clear();
             memoJoint.clear();
-            memoDisjoint.clear();
+            memoParted.clear();
         }
 
         // if a suit has no possible melds, insert an empty set
@@ -384,7 +379,7 @@ public class BotPlayer extends Player{
     private ArrayList<int[]> memoEyes = new ArrayList<>();
     private ArrayList<int[]> memoChows = new ArrayList<>();
     private ArrayList<int[]> memoJoint = new ArrayList<>();
-    private ArrayList<int[]> memoDisjoint = new ArrayList<>();
+    private ArrayList<int[]> memoParted = new ArrayList<>();
 
     /// DEBUG
     static int gCount1 = 0;
@@ -413,7 +408,7 @@ public class BotPlayer extends Player{
     //                 scanJointPartialChow():  partial chows   {n, n+1}
     //                 scanPartialPartedChow(): partial chow    {n, n+2}
 
-    private void scanHonors(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, int copies, boolean isRootStackFrame){
+    private void scanHonors(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, int copies, boolean isFunc1stInstance){
         gCount1++;
         if (copies == 2 && !checkIfNewPath(memoEyes, tileCounterSubset)) return;
 
@@ -432,18 +427,18 @@ public class BotPlayer extends Player{
         }
 
         if (copies > 2){
-            if (isRootStackFrame) memoEyes.clear();
+            if (isFunc1stInstance) memoEyes.clear();
             scanHonors(suit, suitPermutations, melds, tileCounterSubset, copies - 1, true);
         }
 
-        if (!everCreatedMeld && !melds.isEmpty()){
+        if (!everCreatedMeld && !melds.isEmpty() && checkNewSequence(suitPermutations, melds)){
             ArrayList<Meld> deepCopy = new ArrayList<>();
             for(int i = 0; i < melds.size(); i++) deepCopy.add(melds.get(i).clone());
             suitPermutations.add(deepCopy);
         }
     }
 
-    private void scanDupes(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, int copies, boolean isRootStackFrame){
+    private void scanDupes(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, int copies, boolean isFunc1stInstance){
         gCount1++;
         if (copies == 2 && !checkIfNewPath(memoEyes, tileCounterSubset)) return;
 
@@ -467,14 +462,14 @@ public class BotPlayer extends Player{
             /* the memo list when the 1st stack frame is searching for kongs/pongs turns out to be the same when it's 
                searching for eyes, therefore the list must be cleared before searching for eyes, since all path 
                identifiers (tileSubsetCounter variations) have already been memoized when searching kongs/pongs */
-            if (isRootStackFrame) memoEyes.clear();
+            if (isFunc1stInstance) memoEyes.clear();
             scanDupes(suit, suitPermutations, melds, tileCounterSubset, copies - 1, true);
         }
         // after eyes, start searching for chows
         else scanChow(suit, suitPermutations, melds, tileCounterSubset, true);
     }
 
-    private void scanChow(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, boolean isRootStackFrame){
+    private void scanChow(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, boolean isFunc1stInstance){
         gCount1++;
         if (!checkIfNewPath(memoChows, tileCounterSubset)) return;
 
@@ -498,11 +493,11 @@ public class BotPlayer extends Player{
             tileCounterSubset[i + 2] += 1;
             melds.remove(melds.size() - 1);
         }
-        if (isRootStackFrame) memoChows.clear();
+        if (isFunc1stInstance) memoChows.clear();
         scanJointPartialChow(suit, suitPermutations, melds, tileCounterSubset, true);
     }
 
-    private void scanJointPartialChow(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, boolean isRootStackFrame){
+    private void scanJointPartialChow(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, boolean isFunc1stInstance){
         gCount1++;
         if (!checkIfNewPath(memoJoint, tileCounterSubset)) return;
 
@@ -523,13 +518,13 @@ public class BotPlayer extends Player{
             tileCounterSubset[i + 1] += 1;
             melds.remove(melds.size() - 1);
         }
-        if (isRootStackFrame) memoJoint.clear();
+        if (isFunc1stInstance) memoJoint.clear();
         scanPartedPartialChow(suit, suitPermutations, melds, tileCounterSubset, true);
     }
 
-    private void scanPartedPartialChow(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, boolean isRootStackFrame){
+    private void scanPartedPartialChow(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, boolean isFunc1stInstance){
         gCount1++;
-        if (!checkIfNewPath(memoDisjoint, tileCounterSubset)) return;
+        if (!checkIfNewPath(memoParted, tileCounterSubset)) return;
 
         boolean everCreatedMeld = false;
         for (int i = 0; i < 7; i++){
@@ -550,13 +545,33 @@ public class BotPlayer extends Player{
             tileCounterSubset[i + 2] += 1;
             melds.remove(melds.size() - 1);
         }
-        if (isRootStackFrame) memoDisjoint.clear();
+        if (isFunc1stInstance) memoParted.clear();
 
         // record the possible set of melds when no more sets can be formed
-        if (!everCreatedMeld && !melds.isEmpty()){
+        if (!everCreatedMeld && !melds.isEmpty() && checkNewSequence(suitPermutations, melds)){
             ArrayList<Meld> deepCopy = new ArrayList<>();
             for(int i = 0; i < melds.size(); i++) deepCopy.add(melds.get(i).clone());
             suitPermutations.add(deepCopy);
         }
+    }
+
+    // ensures no subsets are added to the suitPermutations
+    private boolean checkNewSequence(ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds){
+        if (suitPermutations.isEmpty()) return true;
+
+        int uniqueToAllPermutations = 0;
+
+        for (ArrayList<Meld> onePermutation: suitPermutations){
+            int sameMeldFound = 0;
+            for (Meld m: melds){
+                for (Meld n: onePermutation){
+                    if (m.type == n.type && m.suit == n.suit && m.rank == n.rank) sameMeldFound++;
+                }
+            }
+            if (sameMeldFound != melds.size()) uniqueToAllPermutations++;
+        }
+        if (uniqueToAllPermutations == suitPermutations.size()) return true;
+
+        return false;
     }
 }

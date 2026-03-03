@@ -27,6 +27,7 @@ abstract public class Player {
     // public Tile dropTile(Tile t){
     //     return;
     // }
+
     abstract public void evaluate(Table table);
     abstract public Tile makeDecision(Table table);
     abstract public int askToSteal(int playThatCanChow);
