@@ -1,7 +1,6 @@
 package mahjong;
 
 import java.util.Random;
-import java.time.Clock;
 
 public class Mahjong {
     private static final int NOSTEAL = -1;
@@ -91,7 +90,7 @@ public class Mahjong {
 
         Status status = new Status(INCOMPLETE, NOSTEAL);
         while (status.game == INCOMPLETE){
-            status = pickAndDrop(table, players, turn);
+            status = pickAndDrop(table, players, turn, status);
             if (status.steal == NOSTEAL) turn++;
             else turn = status.steal + 1;
         }            
@@ -108,8 +107,9 @@ public class Mahjong {
         }
     }
 
-    public static Status pickAndDrop(Table table, Player[] players, int turn){
-        players[turn].pickTile(table.giveTile());
+    public static Status pickAndDrop(Table table, Player[] players, int turn, Status status){
+        if (status.steal == NOSTEAL) players[turn].pickTile(table.giveTile());
+        else players[turn].pickTile(table.giveMostRecentDiscard());
 
         // turn player evaluates if they mahjong
         if (players[turn].getMahjong()) return new Status(COMPLETE, NOSTEAL);

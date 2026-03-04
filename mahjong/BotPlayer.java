@@ -1,6 +1,5 @@
 package mahjong;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 
 public class BotPlayer extends Player{
@@ -50,9 +49,28 @@ public class BotPlayer extends Player{
         System.out.print("[");
         for (int i = 0; i < list.size(); i++){
             Meld group = list.get(i);
-            System.out.print("{" + group.type + "," + group.rank + "}");                
+            
+            String type = "";
+            switch (group.type) {
+                case KONG:
+                    type = "K"; break;
+                case PONG:
+                    type = "P"; break;
+                case EYES:
+                    type = "E"; break;                    
+                case CHOW:
+                    type = "C"; break;
+                case JOINTPARTIAL:
+                    type = "j"; break;
+                case PARTEDPARTIAL:
+                    type = "p"; break;
+                case LONETILE:
+                    type = "l"; break;
+            }
+            System.out.print(type + ":" + (group.rank + 1));
+            if (i != list.size() - 1) System.out.print(" ");
         }
-        System.out.print("]");
+        System.out.print("] ");
     }
 
     public static void printFancyMeldList(ArrayList<Meld> list){
@@ -72,7 +90,6 @@ public class BotPlayer extends Player{
             int r = group.rank;
             int t = group.type;
 
-            System.out.print("{");
             if (t >= 2){
                 for (int a = 0; a < t; a++) System.out.print(tileIndex[s][r]);
             }
@@ -91,7 +108,7 @@ public class BotPlayer extends Player{
             }
             if (t == LONETILE) System.out.print(tileIndex[s][r]);
 
-            System.out.print("}");
+            if (i != list.size() - 1) System.out.print(":");
         }
         System.out.print("]");
     }
@@ -129,23 +146,48 @@ public class BotPlayer extends Player{
         return hand.get(toDrop);
     }
 
-    // private ArrayList<Double> findPerTileValues(ArrayList<Meld> chosenPath){
-    //     ArrayList<Double> valuePerTile = new ArrayList<>();
-    //     for (Tile t: hand) valuePerTile.add(0);
+    private ArrayList<Double> findPerTileValues(ArrayList<Meld> chosenPath){
+        ArrayList<Double> valuePerTile = new ArrayList<>();
+        for (int i = 0; i < hand.size(); i++) valuePerTile.add(0.0);
 
-    //     // for each meld, increase the value of tiles within those melds
-    //     for (Meld m: chosenPath){
-    //         if (m.type == KONG);
-    //         if (m.type == KONG);
-    //         if (m.type == KONG);
-    //         if (m.type == KONG);
-    //         if (m.type == KONG);
-    //         if (m.type == KONG);
+        // MAGIC NUMBERS tile values
+            // value for being in a set
+            final double InKong =   1.3;
+            final double InPong =   1;
+            final double InEyes =   .7;
+            final double InChow =   .7;
+            final double InJoint =  .4;
+            final double InParted = .2;
+
+        // for each meld, increase the value of tiles within those melds
+        for (Meld m: chosenPath){
+            double value = 0;
+
+            switch (m.type) {
+                case KONG:
+                    value += InKong;
+                    break;
+                case PONG:
+                    value += InPong;
+                    break;
+                case EYES:
+                    value += InEyes;
+                    break;
+                case CHOW:
+                    value += InChow;
+                    break;
+                case JOINTPARTIAL:
+                    value += InJoint;
+                    break;
+                case PARTEDPARTIAL:
+                    value += InParted;
+                    break;
+            }
             
-    //     }
+        }
 
-    //     return valuePerTile;
-    // }
+        return valuePerTile;
+    }
 
 
     public void evaluate(Table table){
@@ -223,13 +265,14 @@ public class BotPlayer extends Player{
             System.out.print(" - [");
             ArrayList<WantedTile> record = new ArrayList<>();
             for (Meld meld: possiblePlay){
-                for (WantedTile w: meld.wantedTiles){
+                for (int j = 0; j < meld.wantedTiles.size(); j++){
+                    WantedTile w = meld.wantedTiles.get(j);
                     boolean quit = false;
                     for (WantedTile r: record) if (r == w) quit = true;
                     if (quit) break;
                     record.add(w);
-                    System.out.print("<" + w.chance + tileIndex[w.suit][w.rank]);
-                    System.out.print(w.priority + ">");
+                    System.out.print(w.chance + tileIndex[w.suit][w.rank]);
+                    System.out.print(w.priority + " ");
                 }
             }
             record.clear();
@@ -287,21 +330,25 @@ public class BotPlayer extends Player{
             if (meldsComplete == 4 && eyesComplete) mahjong = true;
 
             double temp = 0;
-            if (t == KONG) temp = ValKong;
-            else if (t == PONG){
-                temp = ValPong;
-            }
-            else if (t == EYES){
-                temp = ValEyes;
-            }
-            else if (t == CHOW){
-                temp = ValChow;
-            }
-            else if (t == JOINTPARTIAL){
-                temp = ValJoint;
-            }
-            else if (t == PARTEDPARTIAL){
-                temp = ValParted;
+            switch (t) {
+                case KONG:
+                    value += ValKong;
+                    break;
+                case PONG:
+                    value += ValPong;
+                    break;
+                case EYES:
+                    value += ValEyes;
+                    break;
+                case CHOW:
+                    value += ValChow;
+                    break;
+                case JOINTPARTIAL:
+                    value += ValJoint;
+                    break;
+                case PARTEDPARTIAL:
+                    value += ValParted;
+                    break;
             }
 
             value += temp;

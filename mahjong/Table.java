@@ -19,6 +19,7 @@ public class Table {
          {0, 0, 0, 0, 0, 0, 0, 0, 0},
          {0, 0, 0, 0},
          {0, 0, 0}};
+    private Tile mostRecentDiscard = null; 
 
     public Table(){
         // create all the tile
@@ -62,6 +63,14 @@ public class Table {
         return wall.remove(wall.size() - 1);
     }
     public void takeDiscard(Tile t){
-        discardedTilesCounter[t.getSuit()][t.getRank()]++;
+        if (mostRecentDiscard != null){
+            discardedTilesCounter[mostRecentDiscard.getSuit()][mostRecentDiscard.getRank()]++;
+        }
+        mostRecentDiscard = t;
+    }
+    public Tile giveMostRecentDiscard(){
+        Tile temp = mostRecentDiscard;
+        mostRecentDiscard = null;
+        return temp;
     }
 }
