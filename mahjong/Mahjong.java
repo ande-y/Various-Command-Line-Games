@@ -1,6 +1,7 @@
 package mahjong;
 
 import java.util.Random;
+import java.time.Clock;
 
 public class Mahjong {
     private static final int NOSTEAL = -1;
@@ -54,13 +55,23 @@ public class Mahjong {
         // players[0].pickTile(new Tile(3, 2, "."));
         // players[0].pickTile(new Tile(4, 0, "."));
 
-        // players[0].pickTile(new Tile(0, 1, "."));
+        // players[0].pickTile(new Tile(0, 2, "."));
         // players[0].pickTile(new Tile(0, 2, "."));
         // players[0].pickTile(new Tile(0, 4, "."));
+        // players[0].pickTile(new Tile(0, 5, "."));
         // players[0].pickTile(new Tile(0, 6, "."));
+        // players[0].pickTile(new Tile(0, 7, "."));
+        // players[0].pickTile(new Tile(0, 7, "."));
         // players[0].pickTile(new Tile(0, 8, "."));
+        // players[0].pickTile(new Tile(1, 0, "."));
+        // players[0].pickTile(new Tile(1, 2, "."));
+        // players[0].pickTile(new Tile(1, 4, "."));
+        // players[0].pickTile(new Tile(1, 8, "."));
 
+        long start = System.currentTimeMillis();
         players[0].evaluate(table);
+        long end = System.currentTimeMillis();
+        System.out.println("Time elapsed for eval: " + (end - start));
 
         // players[0].debug();
 

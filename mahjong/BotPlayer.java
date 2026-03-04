@@ -1,5 +1,6 @@
 package mahjong;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 
 public class BotPlayer extends Player{
@@ -9,6 +10,7 @@ public class BotPlayer extends Player{
     private static final int CHOW = 1;
     private static final int JOINTPARTIAL = 0;
     private static final int PARTEDPARTIAL = -1;
+    private static final int LONETILE = -2;
 
     private static class Meld {
         int type;
@@ -71,35 +73,80 @@ public class BotPlayer extends Player{
             int t = group.type;
 
             System.out.print("{");
-            if (group.type >= 2){
+            if (t >= 2){
                 for (int a = 0; a < t; a++) System.out.print(tileIndex[s][r]);
             }
-            else if (group.type == CHOW){
+            else if (t == CHOW){
                 System.out.print(tileIndex[s][r]);
                 System.out.print(tileIndex[s][r + 1]);
                 System.out.print(tileIndex[s][r + 2]);
             }
-            else if (group.type == JOINTPARTIAL){
+            else if (t == JOINTPARTIAL){
                 System.out.print(tileIndex[s][r]);
                 System.out.print(tileIndex[s][r + 1]);
             }
-            else if (group.type == PARTEDPARTIAL){
+            else if (t == PARTEDPARTIAL){
                 System.out.print(tileIndex[s][r]);
                 System.out.print(tileIndex[s][r + 2]);
             }
+            if (t == LONETILE) System.out.print(tileIndex[s][r]);
+
             System.out.print("}");
         }
         System.out.print("]");
     }
 
+    ArrayList<ArrayList<Meld>> allPossiblePaths;
+    ArrayList<Double> valueOfPossiblePaths;
+
     public Tile makeDecision(Table table){
         // // choose the hand with the highest value
-        // // assign values to each tile within the chosen hand
-        // // determine if hidden kong should be declared, draw another tile and revaluate the whole hand if necessary
-        // // discard the tile with the lowest value
+        int bestPath = 0;
+        double highestValue = 0;
+        for (int i = 0; i < valueOfPossiblePaths.size(); i++){
+            if (valueOfPossiblePaths.get(i) > highestValue){
+                bestPath = i;
+                highestValue = valueOfPossiblePaths.get(i);
+            }
+        }
         
-        return hand.get(0);
+        // // assign values to each tile within the chosen hand
+        ArrayList<Meld> chosenPath = allPossiblePaths.get(bestPath);
+        ArrayList<Double> valuePerTile = findPerTileValues(chosenPath);
+        
+        // // determine if hidden kong should be declared, draw another tile and revaluate the whole hand if necessary
+
+        // // discard the tile with the lowest value
+        int toDrop = 0;
+        double leastValue = 0;
+        for (int i = 0; i < valuePerTile.size(); i++){
+            if (valuePerTile.get(i) < leastValue){
+                toDrop = i;
+                leastValue = valuePerTile.get(i);
+            }
+        }
+        
+        return hand.get(toDrop);
     }
+
+    // private ArrayList<Double> findPerTileValues(ArrayList<Meld> chosenPath){
+    //     ArrayList<Double> valuePerTile = new ArrayList<>();
+    //     for (Tile t: hand) valuePerTile.add(0);
+
+    //     // for each meld, increase the value of tiles within those melds
+    //     for (Meld m: chosenPath){
+    //         if (m.type == KONG);
+    //         if (m.type == KONG);
+    //         if (m.type == KONG);
+    //         if (m.type == KONG);
+    //         if (m.type == KONG);
+    //         if (m.type == KONG);
+            
+    //     }
+
+    //     return valuePerTile;
+    // }
+
 
     public void evaluate(Table table){
         int[][] tileCounter = 
@@ -126,18 +173,29 @@ public class BotPlayer extends Player{
             tileCounter[t.getSuit()][t.getRank()]++;
         }
 
-        ArrayList<ArrayList<Meld>> allPossiblePaths = findAllPossiblePaths(allPermutations, tileCounter);
-        
-        findWantedTilesForAllMelds(allPermutations, table, tileCounter);
+        allPossiblePaths = findAllPossiblePaths(allPermutations, tileCounter);
 
-        // give each possible play an advantage value based on sets made & chances of a steal
-        ArrayList<Double> valuePerPossiblePlay = new ArrayList<>();
-        for (int i = 0; i < allPossiblePaths.size(); i++){
-            double temp = findValueOfPath(allPossiblePaths.get(i));
-            valuePerPossiblePlay.add(temp);
+        // get counter on what tiles & how many of them can possibly appear in the future
+        int[][] remainingTileCounter = table.getDiscardedTilesCounter();
+        for (int i = 0; i < remainingTileCounter.length; i++){
+            for (int j = 0; j < remainingTileCounter[i].length; j++){
+                remainingTileCounter[i][j] = 4 - (remainingTileCounter[i][j] + tileCounter[i][j]);
+            }
+        }
+        // for each meld in a permutation, find what tiles are desired/can be stolen
+        for (int i = 0; i < allPermutations.size(); i++){
+            ArrayList<ArrayList<Meld>> suitPermutations = allPermutations.get(i);
+            findWantedTiles(suitPermutations, remainingTileCounter[i]);
         }
 
-        { /// DEBUG START print all
+        // give each possible play an advantage value based on sets made & chances of a steal
+        valueOfPossiblePaths = new ArrayList<>();
+        for (int i = 0; i < allPossiblePaths.size(); i++){
+            double temp = findValueOfPath(allPossiblePaths.get(i));
+            valueOfPossiblePaths.add(temp);
+        }
+
+        { /// DEBUG START
         final String[][] tileIndex = 
             {{"🀇", "🀈", "🀉", "🀊", "🀋", "🀌", "🀍", "🀎", "🀏"},
              {"🀙", "🀚", "🀛", "🀜", "🀝", "🀞", "🀟", "🀠", "🀡"},
@@ -146,8 +204,20 @@ public class BotPlayer extends Player{
              {"🀆", "🀅", "🀄"},
              {"🀢", "🀣", "🀤", "🀥"},
              {"🀦", "🀧", "🀨", "🀩"}};
+        // print permutations of individual suits
+        System.out.println("printing all Permutations of all suits: ");
+        for (int i = 0; i < allPermutations.size(); i++){
+            ArrayList<ArrayList<Meld>> suitPermutations = allPermutations.get(i);
+            System.out.printf("%d %-2d ", i, suitPermutations.size());
+            for (int j = 0; j < suitPermutations.size(); j++){
+                printMeldList(suitPermutations.get(j));
+            }
+            System.out.println();
+        }
+        System.out.println();
+        // print tiles unicode grapahics
         for (int i = 0; i < allPossiblePaths.size(); i++){
-            System.out.printf("%.1f\t", valuePerPossiblePlay.get(i));            
+            System.out.printf("%.1f ", valueOfPossiblePaths.get(i));            
             ArrayList<Meld> possiblePlay = allPossiblePaths.get(i);
             printFancyMeldList(possiblePlay);
             System.out.print(" - [");
@@ -168,12 +238,20 @@ public class BotPlayer extends Player{
         System.out.println();
         for (int i = 0; i < hand.size(); i++) System.out.print(hand.get(i).getSymbol());
         System.out.println("\nPossible plays from this hand: " + allPossiblePaths.size());
+        // print tileCounter
         for (int i = 0; i < tileCounter.length; i++){
             for (int j = 0; j < tileCounter[i].length; j++){
                 System.out.print(tileCounter[i][j] + " ");
             }
             System.out.println();
         }
+        // print info
+        System.out.println("Total permutations: " + (craks.size() + dots.size() + sticks.size() + honors.size()));
+        System.out.println("Total tileCounterSubset[]s memoized: " + memoOccurence);
+        System.out.println("Total tileCounterSubset[]s checked: " + tileCounterChecks);
+        System.out.println("Total subsetChecks occured: " + subsetCheckOccurence);
+        System.out.println("Total stack frames invoked: " + stackFrameCounter);
+        System.out.println();
         } /// DEBUG END
 
         return;
@@ -185,52 +263,49 @@ public class BotPlayer extends Player{
         int meldsComplete = meldsPlacedDown;
         boolean eyesComplete = false;
 
-        // MAGIC NUMBERS FEILD
-        final double valKong =      2.5;
-        final double valPong =      1.6;
-        final double valEyes =      1.2;
-        final double valChow =      1;
-        final double valJoint =     .6;
-        final double valParted =    .3;
-
-        final double MultPong =     .1;
-        final double MultEyes =     .1;
-        final double MultChow =     .1;
-        final double MultJoint =    .1;
-        final double MultParted =   .1;
+        // MAGIC NUMBERS: bot decision making parameters
+            // base value of all melds/submelds
+            final double ValKong =      2.5;
+            final double ValPong =      1.6;
+            final double ValEyes =      1.2;
+            final double ValChow =      1;
+            final double ValJoint =     .6;
+            final double ValParted =    .3;
+            // additional value if the needed tile is undrawn yet
+            final double PossibleKong = .1;
+            final double PossiblePong = .1;
+            final double PossibleChow = .1;
+            final double PossibleEyes = .1;
+            // subtractive value if multiple melds needs the same tile
+            final double SplitNeed =    .1;
 
         for (Meld meld: possiblePlay){
             int t = meld.type;
+
             if (t <= KONG && t >= CHOW && t != EYES) meldsComplete++;
             if (t == EYES) eyesComplete = true;
-            
+            if (meldsComplete == 4 && eyesComplete) mahjong = true;
+
             double temp = 0;
-            if (t == KONG) temp = valKong;
+            if (t == KONG) temp = ValKong;
             else if (t == PONG){
-                temp = valPong;
-                for (WantedTile w: meld.wantedTiles) temp -= (w.priority - 1) * MultPong;
+                temp = ValPong;
             }
             else if (t == EYES){
-                temp = valEyes;
-                for (WantedTile w: meld.wantedTiles) temp -= (w.priority - 1) * MultChow;
+                temp = ValEyes;
             }
             else if (t == CHOW){
-                temp = valChow;
-                for (WantedTile w: meld.wantedTiles) temp -= (w.priority - 1) * MultEyes;
+                temp = ValChow;
             }
             else if (t == JOINTPARTIAL){
-                temp = valJoint;
-                for (WantedTile w: meld.wantedTiles) temp -= (w.priority - 1) * MultJoint;
+                temp = ValJoint;
             }
             else if (t == PARTEDPARTIAL){
-                temp = valParted;
-                for (WantedTile w: meld.wantedTiles) temp -= (w.priority - 1) * MultParted;
+                temp = ValParted;
             }
 
             value += temp;
         }
-
-        if (meldsComplete == 4 && eyesComplete) mahjong = true;
 
         return value;
     }
@@ -250,54 +325,45 @@ public class BotPlayer extends Player{
         return;
     }
 
-    private void findWantedTilesForAllMelds(ArrayList<ArrayList<ArrayList<Meld>>> allPermutations, Table table, int[][] tileCounter){
-        // get data on what tiles & how many of them can possibly appear in the future
-        int[][] remainingTileCounter = table.getDiscardedTilesCounter();
-        for (int i = 0; i < remainingTileCounter.length; i++){
-            for (int j = 0; j < remainingTileCounter[i].length; j++){
-                remainingTileCounter[i][j] = 4 - (remainingTileCounter[i][j] + tileCounter[i][j]);
-            }
-        }
-        // give each meld a set of wanted tiles
-        for (ArrayList<ArrayList<Meld>> suitPermutations: allPermutations){
-            for (ArrayList<Meld> permutation: suitPermutations){
-                ArrayList<WantedTile> usefulTiles = new ArrayList<>();
-                for (Meld meld: permutation){
-                    int type = meld.type;
-                    int s = meld.suit;
-                    int r = meld.rank;
+    // populate each meld's wantedTiles<>
+    private void findWantedTiles(ArrayList<ArrayList<Meld>> suitPermutations, int[] remainingTileCounterSubset){
+        for (ArrayList<Meld> onePermutation: suitPermutations){
+            ArrayList<WantedTile> usefulTiles = new ArrayList<>();
+            for (Meld meld: onePermutation){
+                int type = meld.type;
+                int s = meld.suit;
+                int r = meld.rank;
 
-                    if (type == KONG); // cant find more of 4 duplicates, so do nothing
-                    else if (type == PONG || type == EYES){
-                        if (remainingTileCounter[s][r] != 0){
-                            checkDupeWantedTiles(usefulTiles, meld, s, r, remainingTileCounter[s][r]);
-                        }
+                if (type == KONG); // cant find more of 4 duplicates, so do nothing
+                else if (type == PONG || type == EYES || type == LONETILE){
+                    if (remainingTileCounterSubset[r] != 0){
+                        checkDupeWantedTiles(usefulTiles, meld, s, r, remainingTileCounterSubset[r]);
                     }
-                    else if (type == CHOW){
-                        if (r != 0 && remainingTileCounter[s][r - 1] != 0){
-                            checkDupeWantedTiles(usefulTiles, meld, s, r - 1, remainingTileCounter[s][r - 1]);
-                        }
-                        if (r != 6 && remainingTileCounter[s][r + 3] != 0){
-                            checkDupeWantedTiles(usefulTiles, meld, s, r + 3, remainingTileCounter[s][r + 3]);
-                        }
-                    }
-                    else if (type == JOINTPARTIAL){
-                        if (r != 0 && remainingTileCounter[s][r - 1] != 0){
-                            checkDupeWantedTiles(usefulTiles, meld, s, r - 1, remainingTileCounter[s][r - 1]);
-                        }
-                        if (r != 7 && remainingTileCounter[s][r + 2] != 0){
-                            checkDupeWantedTiles(usefulTiles, meld, s, r + 2, remainingTileCounter[s][r + 2]);
-                        }
-                    }
-                    else if (type == PARTEDPARTIAL){
-                        if (remainingTileCounter[s][r + 1] != 0){
-                            checkDupeWantedTiles(usefulTiles, meld, s, r + 1, remainingTileCounter[s][r + 1]);
-                        }
-                    }
-                    else System.err.println("unknown meld found");
                 }
-                usefulTiles.clear();
+                else if (type == CHOW){
+                    if (r != 0 && remainingTileCounterSubset[r - 1] != 0){
+                        checkDupeWantedTiles(usefulTiles, meld, s, r - 1, remainingTileCounterSubset[r - 1]);
+                    }
+                    if (r != 6 && remainingTileCounterSubset[r + 3] != 0){
+                        checkDupeWantedTiles(usefulTiles, meld, s, r + 3, remainingTileCounterSubset[r + 3]);
+                    }
+                }
+                else if (type == JOINTPARTIAL){
+                    if (r != 0 && remainingTileCounterSubset[r - 1] != 0){
+                        checkDupeWantedTiles(usefulTiles, meld, s, r - 1, remainingTileCounterSubset[r - 1]);
+                    }
+                    if (r != 7 && remainingTileCounterSubset[r + 2] != 0){
+                        checkDupeWantedTiles(usefulTiles, meld, s, r + 2, remainingTileCounterSubset[r + 2]);
+                    }
+                }
+                else if (type == PARTEDPARTIAL){
+                    if (remainingTileCounterSubset[r + 1] != 0){
+                        checkDupeWantedTiles(usefulTiles, meld, s, r + 1, remainingTileCounterSubset[r + 1]);
+                    }
+                }
+                else System.err.println("unknown meld found");
             }
+            usefulTiles.clear();
         }
 
     }
@@ -323,13 +389,21 @@ public class BotPlayer extends Player{
             int[] tileCounterSubset = tileCounter[i];
             ArrayList<Meld> melds = new ArrayList<>(); 
             
-            if (i <= 2) scanDupes(i , allPermutations.get(i), melds, tileCounterSubset, 4, true);
-            else scanHonors(i, honors, melds, tileCounterSubset, 4, true);
+         /* This program will use 2 form of memoization to optimize the outputs for finding permutations.
+            Memoizing the int[][] tileCounter. 
+                This method checks if the tree is going in a route that has already been backtracked.
+                Since repeating results only occur on the route looking for eyes, chows, joint partials, 
+                & parted partials, memoization of can only occur in those function instances. Here, 
+                memoiziation will only be utilized when searching for eyes, as including a memoizations 
+                system for other searches makes the code less readible & bare provides any runtime boosts.
+            Brute force comparison to prior permutations
+                Compares candidate permutations to all permutations that's already been logged. Determines 
+                & removes candidate perumation is the same (but in different order), or a subset to another 
+                permutation. The more permutations there are, the longer this algorithm takes. */
+            ArrayList<int[]> memoEyes = new ArrayList<>();
 
-            memoEyes.clear();
-            memoChows.clear();
-            memoJoint.clear();
-            memoParted.clear();
+            if (i <= 2) scanDupes(i , allPermutations.get(i), melds, tileCounterSubset, memoEyes, 4, true);
+            else scanHonors(i, honors, melds, tileCounterSubset, memoEyes, 4, true);
         }
 
         // if a suit has no possible melds, insert an empty set
@@ -339,9 +413,38 @@ public class BotPlayer extends Player{
                 suitPermutations.add(empty);
             }
         }
-        
-        ArrayList<ArrayList<Meld>> allPossiblePaths = new ArrayList<>();
 
+        // append remaining lone tile if any to repective permutations
+        for (int suit = 0; suit < allPermutations.size(); suit++){
+            ArrayList<ArrayList<Meld>> suitPermutations = allPermutations.get(suit);
+            for (ArrayList<Meld> onePermutation: suitPermutations){
+                int[] tileCounterSubsetCopy = tileCounter[suit].clone();
+                for (Meld m: onePermutation){
+                    if (m.type >= 2){
+                        tileCounterSubsetCopy[m.rank] -=  m.type;
+                    }
+                    else if (m.type == CHOW){
+                        tileCounterSubsetCopy[m.rank] -=  1;
+                        tileCounterSubsetCopy[m.rank + 1] -=  1;
+                        tileCounterSubsetCopy[m.rank + 2] -=  1;
+                    }
+                    else if (m.type == JOINTPARTIAL){
+                        tileCounterSubsetCopy[m.rank] -=  1;
+                        tileCounterSubsetCopy[m.rank + 1] -=  1;
+                    }
+                    else if (m.type == PARTEDPARTIAL){
+                        tileCounterSubsetCopy[m.rank] -=  1;
+                        tileCounterSubsetCopy[m.rank + 2] -=  1;
+                    }
+                }
+                for (int i = 0; i < tileCounterSubsetCopy.length; i++){
+                    if (tileCounterSubsetCopy[i] != 0 && tileCounterSubsetCopy[i] == 1) onePermutation.add(new Meld(LONETILE, suit, i));
+                }
+            }
+        }
+        
+        // cartesian product between all suit to create a full hand/path
+        ArrayList<ArrayList<Meld>> allPossiblePaths = new ArrayList<>();
         for (int i = 0; i < craks.size(); i++){
             for (int j = 0; j < dots.size(); j++){
                 for (int k = 0; k < sticks.size(); k++){
@@ -353,42 +456,20 @@ public class BotPlayer extends Player{
             }
         }
 
-        { /// DEBUG START print info
-        System.out.println("printing all Permutations of all suits: ");
-        for (int i = 0; i < allPermutations.size(); i++){
-            ArrayList<ArrayList<Meld>> suitPermutations = allPermutations.get(i);
-            System.out.printf("%d %-2d ", i, suitPermutations.size());
-            for (int j = 0; j < suitPermutations.size(); j++){
-                printMeldList(suitPermutations.get(j));
-            }
-            System.out.println();
-        }
-        System.out.println("Total permutations: " + (craks.size() + dots.size() + sticks.size() + honors.size()));
-        System.out.println("Total tileCounterSubset[]s memoized: " + gCount2);
-        System.out.println("Total stack frames invoked: " + gCount1);
-        System.out.println();
-        } /// DEBUG END
-
         return allPossiblePaths;
     }
 
-    /* memoization is enforced only when searching for eyes, chows, joint partials, & parted partials, as repeating results can only occur 
-       for these combinations. Each type of combination will have it own a memo list. Whenever looking for these combinations, an instance 
-       of tileCounterSubset is memoized, as it can track what "paths" of backtracking have already occured */ 
-
-    private ArrayList<int[]> memoEyes = new ArrayList<>();
-    private ArrayList<int[]> memoChows = new ArrayList<>();
-    private ArrayList<int[]> memoJoint = new ArrayList<>();
-    private ArrayList<int[]> memoParted = new ArrayList<>();
-
     /// DEBUG
-    static int gCount1 = 0;
-    static int gCount2 = 0;
+    static int stackFrameCounter = 0;
+    static int memoOccurence = 0;
+    static int subsetCheckOccurence = 0;
+    static int tileCounterChecks = 0;
 
     // subroutine of all scan melds functions
     private static boolean checkIfNewPath(ArrayList<int[]> memo, int[] tileCounterSubset){
         for (int[] memoElt: memo){
             for (int j = 0; j < tileCounterSubset.length; j++){
+                tileCounterChecks++; /// DEBUG COUNTER
                 for (int k = 0; k < tileCounterSubset.length; k++){
                 if (memoElt[k] != tileCounterSubset[k]) break;
                 if (k == tileCounterSubset.length - 1) return false;
@@ -396,7 +477,7 @@ public class BotPlayer extends Player{
             }
         }
         memo.add(tileCounterSubset.clone());
-        gCount2++;
+        memoOccurence++; /// DEBUG COUNTER
         return true;
     }
 
@@ -408,8 +489,8 @@ public class BotPlayer extends Player{
     //                 scanJointPartialChow():  partial chows   {n, n+1}
     //                 scanPartialPartedChow(): partial chow    {n, n+2}
 
-    private void scanHonors(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, int copies, boolean isFunc1stInstance){
-        gCount1++;
+    private void scanHonors(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, ArrayList<int[]> memoEyes, int copies, boolean isFunc1stInstance){
+        stackFrameCounter++;
         if (copies == 2 && !checkIfNewPath(memoEyes, tileCounterSubset)) return;
 
         boolean everCreatedMeld = false;
@@ -419,7 +500,7 @@ public class BotPlayer extends Player{
                 tileCounterSubset[i] -= copies;
 
                 melds.add(new Meld(copies, suit, i));
-                scanHonors(suit, suitPermutations, melds, tileCounterSubset, copies, false);
+                scanHonors(suit, suitPermutations, melds, tileCounterSubset, memoEyes, copies, false);
 
                 tileCounterSubset[i] += copies;
                 melds.remove(melds.size() - 1);
@@ -428,7 +509,7 @@ public class BotPlayer extends Player{
 
         if (copies > 2){
             if (isFunc1stInstance) memoEyes.clear();
-            scanHonors(suit, suitPermutations, melds, tileCounterSubset, copies - 1, true);
+            scanHonors(suit, suitPermutations, melds, tileCounterSubset, memoEyes, copies - 1, true);
         }
 
         if (!everCreatedMeld && !melds.isEmpty() && checkNewSequence(suitPermutations, melds)){
@@ -438,8 +519,8 @@ public class BotPlayer extends Player{
         }
     }
 
-    private void scanDupes(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, int copies, boolean isFunc1stInstance){
-        gCount1++;
+    private void scanDupes(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, ArrayList<int[]> memoEyes, int copies, boolean isFunc1stInstance){
+        stackFrameCounter++;
         if (copies == 2 && !checkIfNewPath(memoEyes, tileCounterSubset)) return;
 
         for (int i = 0; i < 9; i++){
@@ -448,7 +529,7 @@ public class BotPlayer extends Player{
 
                 // copies: 4 = kong, 3 = pong, 2 = eyes
                 melds.add(new Meld(copies, suit, i));
-                scanDupes(suit, suitPermutations, melds, tileCounterSubset, copies, false);
+                scanDupes(suit, suitPermutations, melds, tileCounterSubset, memoEyes, copies, false);
 
                 // "release" the tiles, undo the set afterwards
                 // this allows backtracking for all possible permutations sets of melds 
@@ -463,15 +544,14 @@ public class BotPlayer extends Player{
                searching for eyes, therefore the list must be cleared before searching for eyes, since all path 
                identifiers (tileSubsetCounter variations) have already been memoized when searching kongs/pongs */
             if (isFunc1stInstance) memoEyes.clear();
-            scanDupes(suit, suitPermutations, melds, tileCounterSubset, copies - 1, true);
+            scanDupes(suit, suitPermutations, melds, tileCounterSubset, memoEyes, copies - 1, true);
         }
         // after eyes, start searching for chows
-        else scanChow(suit, suitPermutations, melds, tileCounterSubset, true);
+        else scanChow(suit, suitPermutations, melds, tileCounterSubset);
     }
 
-    private void scanChow(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, boolean isFunc1stInstance){
-        gCount1++;
-        if (!checkIfNewPath(memoChows, tileCounterSubset)) return;
+    private void scanChow(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset){
+        stackFrameCounter++;
 
         for (int i = 0; i < 7; i++){
             if (tileCounterSubset[i] == 0) continue;
@@ -484,7 +564,7 @@ public class BotPlayer extends Player{
 
             melds.add(new Meld(CHOW, suit, i));
 
-            scanChow(suit, suitPermutations, melds, tileCounterSubset, false);
+            scanChow(suit, suitPermutations, melds, tileCounterSubset);
             
             // "release" the tiles, undo the set afterwards
             // this allows backtracking for all possible permutations sets of melds 
@@ -493,13 +573,11 @@ public class BotPlayer extends Player{
             tileCounterSubset[i + 2] += 1;
             melds.remove(melds.size() - 1);
         }
-        if (isFunc1stInstance) memoChows.clear();
-        scanJointPartialChow(suit, suitPermutations, melds, tileCounterSubset, true);
+        scanJointPartialChow(suit, suitPermutations, melds, tileCounterSubset);
     }
 
-    private void scanJointPartialChow(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, boolean isFunc1stInstance){
-        gCount1++;
-        if (!checkIfNewPath(memoJoint, tileCounterSubset)) return;
+    private void scanJointPartialChow(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset){
+        stackFrameCounter++;
 
         for (int i = 0; i < 8; i++){
             if (tileCounterSubset[i] == 0) continue;
@@ -510,7 +588,7 @@ public class BotPlayer extends Player{
 
             melds.add(new Meld(JOINTPARTIAL, suit, i));
 
-            scanJointPartialChow(suit, suitPermutations, melds, tileCounterSubset, false);
+            scanJointPartialChow(suit, suitPermutations, melds, tileCounterSubset);
             
             // "release" the tiles, undo the set afterwards
             // this allows backtracking for all possible permutations sets of melds 
@@ -518,13 +596,11 @@ public class BotPlayer extends Player{
             tileCounterSubset[i + 1] += 1;
             melds.remove(melds.size() - 1);
         }
-        if (isFunc1stInstance) memoJoint.clear();
-        scanPartedPartialChow(suit, suitPermutations, melds, tileCounterSubset, true);
+        scanPartedPartialChow(suit, suitPermutations, melds, tileCounterSubset);
     }
 
-    private void scanPartedPartialChow(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, boolean isFunc1stInstance){
-        gCount1++;
-        if (!checkIfNewPath(memoParted, tileCounterSubset)) return;
+    private void scanPartedPartialChow(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset){
+        stackFrameCounter++;
 
         boolean everCreatedMeld = false;
         for (int i = 0; i < 7; i++){
@@ -537,7 +613,7 @@ public class BotPlayer extends Player{
 
             melds.add(new Meld(PARTEDPARTIAL, suit, i));
 
-            scanPartedPartialChow(suit, suitPermutations, melds, tileCounterSubset, false);
+            scanPartedPartialChow(suit, suitPermutations, melds, tileCounterSubset);
             
             // "release" the tiles, undo the set afterwards
             // this allows backtracking for all possible permutations sets of melds 
@@ -545,7 +621,6 @@ public class BotPlayer extends Player{
             tileCounterSubset[i + 2] += 1;
             melds.remove(melds.size() - 1);
         }
-        if (isFunc1stInstance) memoParted.clear();
 
         // record the possible set of melds when no more sets can be formed
         if (!everCreatedMeld && !melds.isEmpty() && checkNewSequence(suitPermutations, melds)){
@@ -562,10 +637,22 @@ public class BotPlayer extends Player{
         int uniqueToAllPermutations = 0;
 
         for (ArrayList<Meld> onePermutation: suitPermutations){
+            if (melds.size() > onePermutation.size()){
+                uniqueToAllPermutations++;
+                continue;
+            }
+    
+            subsetCheckOccurence++; /// DEBUG GLOBAL COUNTER
+
             int sameMeldFound = 0;
             for (Meld m: melds){
+                if (m.type == LONETILE) continue;
                 for (Meld n: onePermutation){
-                    if (m.type == n.type && m.suit == n.suit && m.rank == n.rank) sameMeldFound++;
+                    if(n.type == LONETILE) continue;
+                    if (m.type == n.type && m.suit == n.suit && m.rank == n.rank){
+                        sameMeldFound++;
+                        break;
+                    }
                 }
             }
             if (sameMeldFound != melds.size()) uniqueToAllPermutations++;
@@ -574,4 +661,5 @@ public class BotPlayer extends Player{
 
         return false;
     }
+   
 }
