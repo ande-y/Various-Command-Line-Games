@@ -1,5 +1,6 @@
 package mahjong;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 
 public class BotPlayer extends Player{
@@ -129,66 +130,222 @@ public class BotPlayer extends Player{
         
         // // assign values to each tile within the chosen hand
         ArrayList<Meld> chosenPath = allPossiblePaths.get(bestPath);
-        ArrayList<Double> valuePerTile = findPerTileValues(chosenPath);
+        double[] valuePerTile = findTileValues(chosenPath);
         
         // // determine if hidden kong should be declared, draw another tile and revaluate the whole hand if necessary
 
         // // discard the tile with the lowest value
         int toDrop = 0;
         double leastValue = 0;
-        for (int i = 0; i < valuePerTile.size(); i++){
-            if (valuePerTile.get(i) < leastValue){
+        for (int i = 0; i < valuePerTile.length; i++){
+            if (valuePerTile[i] < leastValue){
                 toDrop = i;
-                leastValue = valuePerTile.get(i);
+                leastValue = valuePerTile[i];
             }
         }
         
         return hand.get(toDrop);
     }
 
-    private ArrayList<Double> findPerTileValues(ArrayList<Meld> chosenPath){
-        ArrayList<Double> valuePerTile = new ArrayList<>();
-        for (int i = 0; i < hand.size(); i++) valuePerTile.add(0.0);
+    // map melds' tiles to its respective tile in the hand
+    // subroutine of findTileValues()
+    private ArrayList<ArrayList<Integer>> mapMeldsToHand(ArrayList<Meld> path){
+        ArrayList<ArrayList<Integer>> meldMap = new ArrayList<>();
 
-        // MAGIC NUMBERS tile values
-            // value for being in a set
-            final double InKong =   1.3;
-            final double InPong =   1;
-            final double InEyes =   .7;
-            final double InChow =   .7;
-            final double InJoint =  .4;
-            final double InParted = .2;
+        boolean[] taken = new boolean[hand.size()];
+        for (int i = 0; i < taken.length; i++) taken[i] = false;
 
-        // for each meld, increase the value of tiles within those melds
-        for (Meld m: chosenPath){
-            double value = 0;
+        for (Meld m: path){
+            int type = m.type;
 
-            switch (m.type) {
-                case KONG:
-                    value += InKong;
-                    break;
-                case PONG:
-                    value += InPong;
-                    break;
-                case EYES:
-                    value += InEyes;
-                    break;
-                case CHOW:
-                    value += InChow;
-                    break;
-                case JOINTPARTIAL:
-                    value += InJoint;
-                    break;
-                case PARTEDPARTIAL:
-                    value += InParted;
-                    break;
+            // load what tile that are being looked for in the meld
+            ArrayList<Tile> toFind = new ArrayList<>();
+            if (type >= 2){
+                for (int i = 0; i < type; i++) toFind.add(new Tile(m.suit, m.rank, ""));
             }
-            
+            else if (type == CHOW){
+                toFind.add(new Tile(m.suit, m.rank, ""));
+                toFind.add(new Tile(m.suit, m.rank + 1, ""));
+                toFind.add(new Tile(m.suit, m.rank + 2, ""));
+            }
+            else if (type == JOINTPARTIAL){
+                toFind.add(new Tile(m.suit, m.rank, ""));
+                toFind.add(new Tile(m.suit, m.rank + 1, ""));
+            }
+            else if (type == PARTEDPARTIAL){
+                toFind.add(new Tile(m.suit, m.rank, ""));
+                toFind.add(new Tile(m.suit, m.rank + 2, ""));
+            }
+            else if (type == LONETILE){
+                toFind.add(new Tile(m.suit, m.rank, ""));
+            }
+
+            // find the index in the hand which the tile correspond to
+            ArrayList<Integer> tileIndexer = new ArrayList<>();
+            for (Tile t: toFind){
+                boolean found = false;
+                for (int i = 0; i < taken.length; i++){
+                    if (taken[i]) continue;
+                    Tile h = hand.get(i);
+                    if (t.getSuit() == h.getSuit() && t.getRank() == h.getRank()){
+                        tileIndexer.add(i);
+                        taken[i] = true;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) System.err.printf("<!> looking for s:%d r:%d, can find it.\n", t.getSuit(), t.getRank());
+            }
+            meldMap.add(tileIndexer);
         }
+        return meldMap;
+    }
+
+    // subroutine of makeDecision() & evaluate()
+    private double[] findTileValues(ArrayList<Meld> path){
+        ArrayList<ArrayList<Integer>> meldMap = mapMeldsToHand(path);
+
+        // MAGIC NUMBERS: bot decision making parameters
+        // base value of all melds/submelds
+        final double ValKong =          1.7;
+        final double ValPong =          1.5;
+        final double ValEyes =          1;
+        final double ValChow =          1;
+        final double ValJoint =         .6;
+        final double ValParted =        .3;
+        // additional value if the needed tile is undrawn yet
+        final double ToKong =           .1;
+        final double ToPong =           .1;
+        final double ToChow =           .15;
+        final double ToEyes =           .15;
+        // additional value if a tile in a meld is needed by another meld (tile can be used to switch plans)
+        final double MultiMeldBonus =   .1;
+        // additional value if multiple melds needs the same tile
+        final double PriorityPong =     .1;
+        final double PriorityEyes =     .1;
+        final double PriorityChow =     .1;
+        final double PriorityJoint =    .1;
+        final double PriorityParted =   .1;
+
+        double[] valuePerTile = new double[hand.size()];
+
+        int meldsComplete = meldsPlacedDown;
+        boolean eyesComplete = false;
+        
+        for (int i = 0; i < path.size(); i++){
+            Meld meld = path.get(i);
+            int t = meld.type;
+            int s = meld.suit;
+            int r = meld.rank;
+            
+            // get list of wanted tile by other melds
+            ArrayList<WantedTile> wantedByOthers = new ArrayList<>();
+            for (Meld m: path){
+                if (m == meld) continue;
+                for (WantedTile w: m.wantedTiles) wantedByOthers.add(w);
+            }
+
+            if (t <= KONG && t >= CHOW && t != EYES) meldsComplete++;
+            if (t == EYES) eyesComplete = true;
+
+            // 1. set all tiles within there respective melds a value
+            // 2. add any value for potential steals
+            // 3. add value if tiles are needed other other melds
+            // 4
+            if (t == KONG) calculateDupeValues(valuePerTile, meld, i, wantedByOthers, meldMap, ValKong, 0, MultiMeldBonus);
+            else if (t == PONG) calculateDupeValues(valuePerTile, meld, i, wantedByOthers, meldMap, ValPong, ToKong, MultiMeldBonus);
+            else if (t == EYES) calculateDupeValues(valuePerTile, meld, i, wantedByOthers, meldMap, ValEyes, ToPong, MultiMeldBonus);
+            else if (t == CHOW){
+                double[] temps = {ValChow, ValChow, ValChow};
+                
+                ArrayList<WantedTile> wanted = meld.wantedTiles;
+                if (wanted.size() != 1 && wanted.size() != 2) System.err.println("<!> Chow only has 1 or 2 wanted tiles, found " + meld.wantedTiles.size());
+                for (WantedTile w: wanted){
+                    temps[0] += w.chance * ToChow; 
+                    temps[1] += w.chance * ToChow; 
+                }
+
+                for (int a = 0; a < 3; a++){
+                    for (WantedTile w: wantedByOthers){
+                        if (s == w.suit && r + a == w.rank) temps[a] += MultiMeldBonus * w.priority * (4 - w.chance);
+                    }
+                }  
+                for (int a = 0; a < 3; a++){
+                    int index = meldMap.get(i).get(a);
+                    valuePerTile[index] = temps[a];
+                }
+            }
+            else if (t == JOINTPARTIAL){
+                double[] temps = {ValJoint, ValJoint};
+                
+                ArrayList<WantedTile> wanted = meld.wantedTiles;
+                if (wanted.size() != 1 && wanted.size() != 2) System.err.println("<!> Joint partial only has 1 or 2 wanted tiles, found " + meld.wantedTiles.size());
+                for (WantedTile w: wanted){
+                    temps[0] += w.chance * ToChow; 
+                    temps[1] += w.chance * ToChow; 
+                }
+
+                for (int a = 0; a < 2; a++){
+                    for (WantedTile w: wantedByOthers){
+                        if (s == w.suit && r + a == w.rank) temps[a] += MultiMeldBonus * w.priority * (4 - w.chance);
+                    }
+                }
+                for (int a = 0; a < 2; a++){
+                    int index = meldMap.get(i).get(a);
+                    valuePerTile[index] = temps[a];
+                }
+            }
+            else if (t == PARTEDPARTIAL){
+                double[] temps = {ValParted, ValParted};
+                
+                ArrayList<WantedTile> wanted = meld.wantedTiles;
+                if (wanted.size() != 1) System.err.println("<!> Parted partial only has 1 wanted tiles, found " + meld.wantedTiles.size());
+                temps[0] += wanted.get(0).chance * ToChow; 
+                temps[1] += wanted.get(0).chance * ToChow; 
+
+                for (int a = 0; a < 2; a++){
+                    for (WantedTile w: wantedByOthers){
+                        if (s == w.suit && r + a == w.rank) temps[a] += MultiMeldBonus * w.priority * (4 - w.chance);
+                    }
+                }
+                for (int a = 0; a < 2; a++){
+                    int index = meldMap.get(i).get(a);
+                    valuePerTile[index] = temps[a];
+                }
+            }
+            else if (t == LONETILE){
+                double temp = 0;
+
+                ArrayList<WantedTile> wanted = meld.wantedTiles;
+                if (meld.wantedTiles.size() != 1) System.err.println("<!> Parted partial only has 1 wanted tiles, found " + meld.wantedTiles.size());
+                temp += wanted.get(0).chance * ToEyes; 
+
+                int index = meldMap.get(i).get(0);
+                valuePerTile[index] = temp;
+            }
+        }
+
+        if (meldsComplete == 4 && eyesComplete) mahjong = true;
 
         return valuePerTile;
     }
 
+    private void calculateDupeValues(double[] valuePerTile, Meld meld, int meldIndex, ArrayList<WantedTile> wantedByOthers, ArrayList<ArrayList<Integer>> meldIndexer, double baseVal, double promotionVal, double MultiMeldBonus){
+        double val = baseVal;
+
+        // for duplicates, there can only be 1 wanted tile
+        if (meld.wantedTiles.size() != 1) System.err.println("<!> Dupe meld supposed to have 1 wanted tile, instead has " + meld.wantedTiles.size());
+        WantedTile wanted = meld.wantedTiles.get(0);
+        val += wanted.chance * promotionVal; 
+
+        for (WantedTile w: wantedByOthers){
+            if (meld.suit == w.suit && meld.rank == w.rank) val += MultiMeldBonus * w.priority * (4 - w.chance);
+        }
+        for (int a = 0; a < meld.type; a++){
+            int index = meldIndexer.get(meldIndex).get(a);
+            valuePerTile[index] = val;
+        }
+    }
 
     public void evaluate(Table table){
         int[][] tileCounter = 
@@ -198,22 +355,24 @@ public class BotPlayer extends Player{
              {0, 0, 0, 0},
              {0, 0, 0}};
 
-        ArrayList<ArrayList<Meld>> craks = new ArrayList<>();
-        ArrayList<ArrayList<Meld>> dots = new ArrayList<>();
-        ArrayList<ArrayList<Meld>> sticks = new ArrayList<>();
-        ArrayList<ArrayList<Meld>> honors = new ArrayList<>();
-
-        ArrayList<ArrayList<ArrayList<Meld>>> allPermutations = new ArrayList<>();
-        allPermutations.add(craks);
-        allPermutations.add(dots);
-        allPermutations.add(sticks);
-        allPermutations.add(honors);
-
         // populate the tileCounter
         for (Tile t: hand){
             if (t.getSuit() >= 5) continue;
             tileCounter[t.getSuit()][t.getRank()]++;
         }
+
+        ArrayList<ArrayList<Meld>> craks = new ArrayList<>();
+        ArrayList<ArrayList<Meld>> dots = new ArrayList<>();
+        ArrayList<ArrayList<Meld>> sticks = new ArrayList<>();
+        ArrayList<ArrayList<Meld>> winds = new ArrayList<>();
+        ArrayList<ArrayList<Meld>> dragons = new ArrayList<>();
+
+        ArrayList<ArrayList<ArrayList<Meld>>> allPermutations = new ArrayList<>();
+        allPermutations.add(craks);
+        allPermutations.add(dots);
+        allPermutations.add(sticks);
+        allPermutations.add(winds);
+        allPermutations.add(dragons);
 
         allPossiblePaths = findAllPossiblePaths(allPermutations, tileCounter);
 
@@ -230,11 +389,13 @@ public class BotPlayer extends Player{
             findWantedTiles(suitPermutations, remainingTileCounter[i]);
         }
 
-        // give each possible play an advantage value based on sets made & chances of a steal
+        // give each possible play the average value between all its tiles
         valueOfPossiblePaths = new ArrayList<>();
-        for (int i = 0; i < allPossiblePaths.size(); i++){
-            double temp = findValueOfPath(allPossiblePaths.get(i));
-            valueOfPossiblePaths.add(temp);
+        for (ArrayList<Meld> possiblePath: allPossiblePaths){
+            double[] valuesOfTiles = findTileValues(possiblePath);
+            double sum = 0;
+            for (double d: valuesOfTiles) sum += d;
+            valueOfPossiblePaths.add(sum / valuesOfTiles.length);
         }
 
         { /// DEBUG START
@@ -259,7 +420,7 @@ public class BotPlayer extends Player{
         System.out.println();
         // print tiles unicode grapahics
         for (int i = 0; i < allPossiblePaths.size(); i++){
-            System.out.printf("%.1f ", valueOfPossiblePaths.get(i));            
+            System.out.printf("%.2f ", valueOfPossiblePaths.get(i));            
             ArrayList<Meld> possiblePlay = allPossiblePaths.get(i);
             printFancyMeldList(possiblePlay);
             System.out.print(" - [");
@@ -289,7 +450,7 @@ public class BotPlayer extends Player{
             System.out.println();
         }
         // print info
-        System.out.println("Total permutations: " + (craks.size() + dots.size() + sticks.size() + honors.size()));
+        System.out.println("Total permutations: " + (craks.size() + dots.size() + sticks.size() + winds.size() + dragons.size()));
         System.out.println("Total tileCounterSubset[]s memoized: " + memoOccurence);
         System.out.println("Total tileCounterSubset[]s checked: " + tileCounterChecks);
         System.out.println("Total subsetChecks occured: " + subsetCheckOccurence);
@@ -298,63 +459,6 @@ public class BotPlayer extends Player{
         } /// DEBUG END
 
         return;
-    }
-
-    private double findValueOfPath(ArrayList<Meld> possiblePlay){
-        double value = 0;
-
-        int meldsComplete = meldsPlacedDown;
-        boolean eyesComplete = false;
-
-        // MAGIC NUMBERS: bot decision making parameters
-            // base value of all melds/submelds
-            final double ValKong =      2.5;
-            final double ValPong =      1.6;
-            final double ValEyes =      1.2;
-            final double ValChow =      1;
-            final double ValJoint =     .6;
-            final double ValParted =    .3;
-            // additional value if the needed tile is undrawn yet
-            final double PossibleKong = .1;
-            final double PossiblePong = .1;
-            final double PossibleChow = .1;
-            final double PossibleEyes = .1;
-            // subtractive value if multiple melds needs the same tile
-            final double SplitNeed =    .1;
-
-        for (Meld meld: possiblePlay){
-            int t = meld.type;
-
-            if (t <= KONG && t >= CHOW && t != EYES) meldsComplete++;
-            if (t == EYES) eyesComplete = true;
-            if (meldsComplete == 4 && eyesComplete) mahjong = true;
-
-            double temp = 0;
-            switch (t) {
-                case KONG:
-                    value += ValKong;
-                    break;
-                case PONG:
-                    value += ValPong;
-                    break;
-                case EYES:
-                    value += ValEyes;
-                    break;
-                case CHOW:
-                    value += ValChow;
-                    break;
-                case JOINTPARTIAL:
-                    value += ValJoint;
-                    break;
-                case PARTEDPARTIAL:
-                    value += ValParted;
-                    break;
-            }
-
-            value += temp;
-        }
-
-        return value;
     }
 
     // subroutine of findWantedTilesForAllMelds
@@ -408,7 +512,7 @@ public class BotPlayer extends Player{
                         checkDupeWantedTiles(usefulTiles, meld, s, r + 1, remainingTileCounterSubset[r + 1]);
                     }
                 }
-                else System.err.println("unknown meld found");
+                else System.err.println("<!> unknown meld found");
             }
             usefulTiles.clear();
         }
@@ -416,12 +520,13 @@ public class BotPlayer extends Player{
     }
 
     // subroutine of findAllPossiblePaths()
-    private static ArrayList<Meld> combineArrayLists(ArrayList<Meld> craks, ArrayList<Meld> dots, ArrayList<Meld> sticks, ArrayList<Meld> honors){
+    private static ArrayList<Meld> combineArrayLists(ArrayList<Meld> craks, ArrayList<Meld> dots, ArrayList<Meld> sticks, ArrayList<Meld> winds, ArrayList<Meld> dragons){
         ArrayList<Meld> result = new ArrayList<>(); 
         for (Meld m: craks) result.add(m);
         for (Meld m: dots) result.add(m);
         for (Meld m: sticks) result.add(m);
-        for (Meld m: honors) result.add(m);
+        for (Meld m: winds) result.add(m);
+        for (Meld m: dragons) result.add(m);
         return result;
     }
     
@@ -429,29 +534,32 @@ public class BotPlayer extends Player{
         ArrayList<ArrayList<Meld>> craks = allPermutations.get(0);
         ArrayList<ArrayList<Meld>> dots = allPermutations.get(1);
         ArrayList<ArrayList<Meld>> sticks = allPermutations.get(2);
-        ArrayList<ArrayList<Meld>> honors = allPermutations.get(3);
+        ArrayList<ArrayList<Meld>> winds = allPermutations.get(3);
+        ArrayList<ArrayList<Meld>> dragons = allPermutations.get(4);
 
         // find permutations possible for each suit disjointly
-        for (int i = 0; i < 5; i++){
-            int[] tileCounterSubset = tileCounter[i];
+        for (int i = 0; i < allPermutations.size(); i++){
+            int[] tileCounterSubset = tileCounter[i].clone();
             ArrayList<Meld> melds = new ArrayList<>(); 
             
          /* This program will use 2 form of memoization to optimize the outputs for finding permutations.
-            Memoizing the int[][] tileCounter. 
+            Memoizing the int[][] tileCounter -> checkIfNewPath()
                 This method checks if the tree is going in a route that has already been backtracked.
-                Since repeating results only occur on the route looking for eyes, chows, joint partials, 
+                Since repeating results only occur on routes looking for eyes, chows, joint partials, 
                 & parted partials, memoization of can only occur in those function instances. Here, 
                 memoiziation will only be utilized when searching for eyes, as including a memoizations 
                 system for other searches makes the code less readible & bare provides any runtime boosts.
-            Brute force comparison to prior permutations
+            Brute force comparison to prior permutations -> checkNewSequence()
                 Compares candidate permutations to all permutations that's already been logged. Determines 
-                & removes candidate perumation is the same (but in different order), or a subset to another 
-                permutation. The more permutations there are, the longer this algorithm takes. */
+                & removes candidate permutation if the same (but in different order), or a subset to another 
+                permutation. But the more permutations there are, the longer this algorithm takes. */
             ArrayList<int[]> memoEyes = new ArrayList<>();
 
             if (i <= 2) scanDupes(i , allPermutations.get(i), melds, tileCounterSubset, memoEyes, 4, true);
-            else scanHonors(i, honors, melds, tileCounterSubset, memoEyes, 4, true);
+            else scanHonors(i, allPermutations.get(i), melds, tileCounterSubset, memoEyes, 4, true);
         }
+
+        // join the 
 
         // if a suit has no possible melds, insert an empty set
         for (ArrayList<ArrayList<Meld>> suitPermutations: allPermutations){
@@ -485,19 +593,22 @@ public class BotPlayer extends Player{
                     }
                 }
                 for (int i = 0; i < tileCounterSubsetCopy.length; i++){
-                    if (tileCounterSubsetCopy[i] != 0 && tileCounterSubsetCopy[i] == 1) onePermutation.add(new Meld(LONETILE, suit, i));
+                    if (tileCounterSubsetCopy[i] == 1) onePermutation.add(new Meld(LONETILE, suit, i));
+                    else if (tileCounterSubsetCopy[i] != 0) System.err.println("<!> tile subtraction error");
                 }
             }
         }
         
         // cartesian product between all suit to create a full hand/path
         ArrayList<ArrayList<Meld>> allPossiblePaths = new ArrayList<>();
-        for (int i = 0; i < craks.size(); i++){
-            for (int j = 0; j < dots.size(); j++){
-                for (int k = 0; k < sticks.size(); k++){
-                    for (int l = 0; l < honors.size(); l++){
-                        ArrayList<Meld> temp = combineArrayLists(craks.get(i), dots.get(j), sticks.get(k), honors.get(l));
-                        allPossiblePaths.add(temp);
+        for (int a = 0; a < craks.size(); a++){
+            for (int b = 0; b < dots.size(); b++){
+                for (int c = 0; c < sticks.size(); c++){
+                    for (int d = 0; d < winds.size(); d++){
+                        for (int e = 0; e < dragons.size(); e++){
+                            ArrayList<Meld> temp = combineArrayLists(craks.get(a), dots.get(b), sticks.get(c), winds.get(d), dragons.get(e));
+                            allPossiblePaths.add(temp);
+                        }
                     }
                 }
             }

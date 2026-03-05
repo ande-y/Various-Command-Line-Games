@@ -21,8 +21,10 @@ abstract public class Player {
         System.out.println();
     }
 
-    public void pickTile(Tile t){
+    public boolean pickTile(Tile t){
+        if (t.getSuit() >= 5) return true;
         hand.add(t);
+        return false;
     }
     // public Tile dropTile(Tile t){
     //     return;

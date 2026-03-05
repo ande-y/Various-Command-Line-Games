@@ -35,7 +35,9 @@ public class Mahjong {
         };
 
         for (int i = 0; i < players.length; i++){
-            for (int j = 0; j < 13; j++) players[i].pickTile(table.giveTile());
+            for (int j = 0; j < 13; j++){
+                while (players[i].pickTile(table.giveTile()));
+            }
         }
         
         players[0].pickTile(table.giveTile());
