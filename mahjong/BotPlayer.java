@@ -1,6 +1,5 @@
 package mahjong;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 
 public class BotPlayer extends Player{
@@ -203,29 +202,29 @@ public class BotPlayer extends Player{
 
     // subroutine of makeDecision() & evaluate()
     private double[] findTileValues(ArrayList<Meld> path){
-        ArrayList<ArrayList<Integer>> meldMap = mapMeldsToHand(path);
-
         // MAGIC NUMBERS: bot decision making parameters
+        final double isHonor =          0.1;
         // base value of all melds/submelds
-        final double ValKong =          1.7;
+        final double ValKong =          1.8;
         final double ValPong =          1.5;
-        final double ValEyes =          1;
+        final double ValEyes =          0.9;
         final double ValChow =          1;
-        final double ValJoint =         .6;
-        final double ValParted =        .3;
         // additional value if the needed tile is undrawn yet
-        final double ToKong =           .1;
-        final double ToPong =           .1;
-        final double ToChow =           .15;
-        final double ToEyes =           .15;
+        final double ToKong =           0.1;
+        final double ToPong =           0.15;
+        final double SplitChow =        0.06;
+        final double ToChow =           0.11;
+        final double ToEyes =           0.14;
         // additional value if a tile in a meld is needed by another meld (tile can be used to switch plans)
-        final double MultiMeldBonus =   .1;
+        final double MultiMeldBonus =   0.12;
         // additional value if multiple melds needs the same tile
         final double PriorityPong =     .1;
         final double PriorityEyes =     .1;
         final double PriorityChow =     .1;
         final double PriorityJoint =    .1;
         final double PriorityParted =   .1;
+
+        ArrayList<ArrayList<Integer>> meldMap = mapMeldsToHand(path);
 
         double[] valuePerTile = new double[hand.size()];
 
@@ -251,7 +250,7 @@ public class BotPlayer extends Player{
             // 1. set all tiles within there respective melds a value
             // 2. add any value for potential steals
             // 3. add value if tiles are needed other other melds
-            // 4
+            // 4. apply bonus if tile is honor
             if (t == KONG) calculateDupeValues(valuePerTile, meld, i, wantedByOthers, meldMap, ValKong, 0, MultiMeldBonus);
             else if (t == PONG) calculateDupeValues(valuePerTile, meld, i, wantedByOthers, meldMap, ValPong, ToKong, MultiMeldBonus);
             else if (t == EYES) calculateDupeValues(valuePerTile, meld, i, wantedByOthers, meldMap, ValEyes, ToPong, MultiMeldBonus);
@@ -260,9 +259,19 @@ public class BotPlayer extends Player{
                 
                 ArrayList<WantedTile> wanted = meld.wantedTiles;
                 if (wanted.size() != 1 && wanted.size() != 2) System.err.println("<!> Chow only has 1 or 2 wanted tiles, found " + meld.wantedTiles.size());
-                for (WantedTile w: wanted){
-                    temps[0] += w.chance * ToChow; 
-                    temps[1] += w.chance * ToChow; 
+                if (r == 0){
+                    temps[1] += wanted.get(0).chance * SplitChow; 
+                    temps[2] += wanted.get(0).chance * SplitChow; 
+                }
+                else if (r == 6){
+                    temps[0] += wanted.get(0).chance * SplitChow; 
+                    temps[1] += wanted.get(0).chance * SplitChow; 
+                }
+                else {
+                    temps[0] += wanted.get(0).chance * SplitChow; 
+                    temps[1] += wanted.get(0).chance * SplitChow; 
+                    temps[1] += wanted.get(1).chance * SplitChow; 
+                    temps[2] += wanted.get(1).chance * SplitChow; 
                 }
 
                 for (int a = 0; a < 3; a++){
@@ -276,7 +285,7 @@ public class BotPlayer extends Player{
                 }
             }
             else if (t == JOINTPARTIAL){
-                double[] temps = {ValJoint, ValJoint};
+                double[] temps = {0, 0};
                 
                 ArrayList<WantedTile> wanted = meld.wantedTiles;
                 if (wanted.size() != 1 && wanted.size() != 2) System.err.println("<!> Joint partial only has 1 or 2 wanted tiles, found " + meld.wantedTiles.size());
@@ -296,7 +305,7 @@ public class BotPlayer extends Player{
                 }
             }
             else if (t == PARTEDPARTIAL){
-                double[] temps = {ValParted, ValParted};
+                double[] temps = {0, 0};
                 
                 ArrayList<WantedTile> wanted = meld.wantedTiles;
                 if (wanted.size() != 1) System.err.println("<!> Parted partial only has 1 wanted tiles, found " + meld.wantedTiles.size());
@@ -323,6 +332,11 @@ public class BotPlayer extends Player{
                 int index = meldMap.get(i).get(0);
                 valuePerTile[index] = temp;
             }
+
+            // suit 3 are Winds, 4 are Dragons
+            if (meld.suit >= 3){
+                for (int index: meldMap.get(i)) valuePerTile[index] += isHonor;
+            }
         }
 
         if (meldsComplete == 4 && eyesComplete) mahjong = true;
@@ -330,10 +344,13 @@ public class BotPlayer extends Player{
         return valuePerTile;
     }
 
+    // subroutine of findTileValues()
     private void calculateDupeValues(double[] valuePerTile, Meld meld, int meldIndex, ArrayList<WantedTile> wantedByOthers, ArrayList<ArrayList<Integer>> meldIndexer, double baseVal, double promotionVal, double MultiMeldBonus){
         double val = baseVal;
 
         // for duplicates, there can only be 1 wanted tile
+        if (meld.wantedTiles.size() != 1) debug();
+
         if (meld.wantedTiles.size() != 1) System.err.println("<!> Dupe meld supposed to have 1 wanted tile, instead has " + meld.wantedTiles.size());
         WantedTile wanted = meld.wantedTiles.get(0);
         val += wanted.chance * promotionVal; 
@@ -346,7 +363,7 @@ public class BotPlayer extends Player{
             valuePerTile[index] = val;
         }
     }
-
+    
     public void evaluate(Table table){
         int[][] tileCounter = 
             {{0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -411,7 +428,7 @@ public class BotPlayer extends Player{
         System.out.println("printing all Permutations of all suits: ");
         for (int i = 0; i < allPermutations.size(); i++){
             ArrayList<ArrayList<Meld>> suitPermutations = allPermutations.get(i);
-            System.out.printf("%d %-2d ", i, suitPermutations.size());
+            System.out.printf("%d %-3d ", i, suitPermutations.size());
             for (int j = 0; j < suitPermutations.size(); j++){
                 printMeldList(suitPermutations.get(j));
             }
@@ -485,32 +502,27 @@ public class BotPlayer extends Player{
                 int s = meld.suit;
                 int r = meld.rank;
 
-                if (type == KONG); // cant find more of 4 duplicates, so do nothing
-                else if (type == PONG || type == EYES || type == LONETILE){
-                    if (remainingTileCounterSubset[r] != 0){
-                        checkDupeWantedTiles(usefulTiles, meld, s, r, remainingTileCounterSubset[r]);
-                    }
+                if (type == KONG || type == PONG || type == EYES || type == LONETILE){
+                    checkDupeWantedTiles(usefulTiles, meld, s, r, remainingTileCounterSubset[r]);
                 }
                 else if (type == CHOW){
-                    if (r != 0 && remainingTileCounterSubset[r - 1] != 0){
+                    if (r != 0){
                         checkDupeWantedTiles(usefulTiles, meld, s, r - 1, remainingTileCounterSubset[r - 1]);
                     }
-                    if (r != 6 && remainingTileCounterSubset[r + 3] != 0){
+                    if (r != 6){
                         checkDupeWantedTiles(usefulTiles, meld, s, r + 3, remainingTileCounterSubset[r + 3]);
                     }
                 }
                 else if (type == JOINTPARTIAL){
-                    if (r != 0 && remainingTileCounterSubset[r - 1] != 0){
+                    if (r != 0){
                         checkDupeWantedTiles(usefulTiles, meld, s, r - 1, remainingTileCounterSubset[r - 1]);
                     }
-                    if (r != 7 && remainingTileCounterSubset[r + 2] != 0){
+                    if (r != 7){
                         checkDupeWantedTiles(usefulTiles, meld, s, r + 2, remainingTileCounterSubset[r + 2]);
                     }
                 }
                 else if (type == PARTEDPARTIAL){
-                    if (remainingTileCounterSubset[r + 1] != 0){
-                        checkDupeWantedTiles(usefulTiles, meld, s, r + 1, remainingTileCounterSubset[r + 1]);
-                    }
+                    checkDupeWantedTiles(usefulTiles, meld, s, r + 1, remainingTileCounterSubset[r + 1]);
                 }
                 else System.err.println("<!> unknown meld found");
             }

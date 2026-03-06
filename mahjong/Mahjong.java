@@ -39,22 +39,7 @@ public class Mahjong {
                 while (players[i].pickTile(table.giveTile()));
             }
         }
-        
-        players[0].pickTile(table.giveTile());
-
-        // players[0].pickTile(new Tile(0, 2, "."));
-        // players[0].pickTile(new Tile(0, 4, "."));
-        // players[0].pickTile(new Tile(0, 5, "."));
-        // players[0].pickTile(new Tile(1, 2, "."));
-        // players[0].pickTile(new Tile(1, 3, "."));
-        // players[0].pickTile(new Tile(1, 6, "."));
-        // players[0].pickTile(new Tile(1, 6, "."));
-        // players[0].pickTile(new Tile(1, 7, "."));
-        // players[0].pickTile(new Tile(1, 8, "."));
-        // players[0].pickTile(new Tile(2, 1, "."));
-        // players[0].pickTile(new Tile(2, 4, "."));
-        // players[0].pickTile(new Tile(3, 2, "."));
-        // players[0].pickTile(new Tile(4, 0, "."));
+        while (players[0].pickTile(table.giveTile()));
 
         // players[0].pickTile(new Tile(0, 2, "."));
         // players[0].pickTile(new Tile(0, 2, "."));
@@ -74,7 +59,22 @@ public class Mahjong {
         long end = System.currentTimeMillis();
         System.out.println("Time elapsed for eval: " + (end - start));
 
-        // players[0].debug();
+        // // DEBUG look for heavenly hand 
+        // int reps = 0;
+        // while (true){
+        //     Table t = new Table();
+        //     Player p = new BotPlayer(".");
+        //     for (int j = 0; j < 14; j++){
+        //         while (p.pickTile(t.giveTile()));
+        //     }
+        //     p.evaluate(t);
+        //     if (p.getMahjong()){
+        //         System.out.println("heavenly hands " + reps);
+        //         p.debug(); // must override & paste all debug printing 
+        //         System.exit(0);
+        //     }
+        //     reps++;
+        // }
 
         // playGame(table, players);
 
