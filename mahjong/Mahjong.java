@@ -25,7 +25,9 @@ public class Mahjong {
         }
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args){
+        Print.clr();
+
         Table table = new Table();
         Player[] players = {
             // new UserPlayer("YOU"),
@@ -39,55 +41,19 @@ public class Mahjong {
                 while (players[i].pickTile(table.giveTile()));
             }
         }
+
         while (players[0].pickTile(table.giveTile()));
-
-        // players[0].pickTile(new Tile(0, 2, "."));
-        // players[0].pickTile(new Tile(0, 2, "."));
-        // players[0].pickTile(new Tile(0, 4, "."));
-        // players[0].pickTile(new Tile(0, 5, "."));
-        // players[0].pickTile(new Tile(0, 6, "."));
-        // players[0].pickTile(new Tile(0, 7, "."));
-        // players[0].pickTile(new Tile(0, 7, "."));
-        // players[0].pickTile(new Tile(0, 8, "."));
-        // players[0].pickTile(new Tile(1, 0, "."));
-        // players[0].pickTile(new Tile(1, 2, "."));
-        // players[0].pickTile(new Tile(1, 4, "."));
-        // players[0].pickTile(new Tile(1, 8, "."));
-
         long start = System.currentTimeMillis();
         players[0].evaluate(table);
         long end = System.currentTimeMillis();
         System.out.println("Time elapsed for eval: " + (end - start));
 
-        // // DEBUG look for heavenly hand 
-        // int reps = 0;
-        // while (true){
-        //     Table t = new Table();
-        //     Player p = new BotPlayer(".");
-        //     for (int j = 0; j < 14; j++){
-        //         while (p.pickTile(t.giveTile()));
-        //     }
-        //     p.evaluate(t);
-        //     if (p.getMahjong()){
-        //         System.out.println("heavenly hands " + reps);
-        //         p.debug(); // must override & paste all debug printing 
-        //         System.exit(0);
-        //     }
-        //     reps++;
-        // }
-
         // playGame(table, players);
-
-        // for (int i = 0; i <players.length; i++){
-        //     if (players[i] instanceof UserPlayer) System.out.print("is user  ");
-        //     else System.out.print("not user ");
-        //     players[i].debug();
-        // }
     }
 
     public static void playGame(Table table, Player[] players){
         Random rand = new Random();
-        // 1st turn == the dealer
+        // find the dealer
         int turn = rand.nextInt(players.length);
 
         Status status = new Status(INCOMPLETE, NOSTEAL);
@@ -110,14 +76,20 @@ public class Mahjong {
     }
 
     public static Status pickAndDrop(Table table, Player[] players, int turn, Status status){
+        // next player picks tile if no one steal
         if (status.steal == NOSTEAL) players[turn].pickTile(table.giveTile());
+        // player takes discarded tile if they steal
         else players[turn].pickTile(table.giveMostRecentDiscard());
 
-        // turn player evaluates if they mahjong
+        // player evaluates their hand 
+        players[turn].evaluate(table);
+        // turn player evaluates if they win, return function prematurely if so
         if (players[turn].getMahjong()) return new Status(COMPLETE, NOSTEAL);
 
+        // else wise player drops a tile
         Tile discard = players[turn].makeDecision(table);
 
+        // see & determine any of the other plays will steal the discarded tile
         int playerThatStole = playersSteal(players, turn, discard);
 
         if (table.noMoreTiles()) return new Status(TIE, NOSTEAL);
@@ -125,21 +97,36 @@ public class Mahjong {
         return new Status(INCOMPLETE, playerThatStole);
     }
 
-    public static int playersSteal(Player[] players, int playerThatDropped, Tile Discard){
+    public static int playersSteal(Player[] players, int PlayerThatDropped, Tile discard){
         int[] action = new int[players.length];
+
+        // check if the player after can chow
+
+        int PlayerThatCanChow = (PlayerThatDropped + 1) % players.length;
+        
         for (int i = 0; i < players.length; i++){
             action[i] = NOSTEAL;
+            if (i == PlayerThatDropped) continue;
+            
+            boolean canChow = false;
+            if (i == PlayerThatCanChow) canChow = true;
 
-            if (i == playerThatDropped) continue;
-            int playerThatCanChow = (playerThatDropped + 1) % players.length;
-            action[i] = players[i].askToSteal(playerThatCanChow);
+            // action[i] = players[i].askToSteal(canChow);
         }
 
-        int playerThatStole = NOSTEAL;
+        // evaluate the player who gets the steal
+        int stealer = -1;
         for (int i = 0; i < players.length; i++){
-            if (action[i] > playerThatStole) playerThatStole = i;
+            if (action[i] > stealer) stealer = i;
         }
 
-        return playerThatStole;
+        // stealer of the tile must expose their meld
+        // players[stealer].exposeMeld(discard);
+
+        // if the steal is a kong, player draws another tile
+        if (action[stealer] == KONG);
+
+        return 10;
+
     }
 }

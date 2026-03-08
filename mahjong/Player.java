@@ -22,7 +22,10 @@ abstract public class Player {
     }
 
     public boolean pickTile(Tile t){
-        if (t.getSuit() >= 5) return true;
+        if (t.getSuit() >= 5){
+            bonusTiles.add(t);
+            return true;
+        }
         hand.add(t);
         return false;
     }
@@ -32,5 +35,6 @@ abstract public class Player {
 
     abstract public void evaluate(Table table);
     abstract public Tile makeDecision(Table table);
-    abstract public int askToSteal(int playThatCanChow);
+    // abstract public int askToSteal(boolean canChow);
+    // abstract public Meld exposeMeld(Tile tile);
 }
