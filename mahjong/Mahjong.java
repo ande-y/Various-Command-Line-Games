@@ -63,16 +63,7 @@ public class Mahjong {
             else turn = status.steal + 1;
         }            
 
-        if (status.game == TIE){
-            System.out.println("no more tiles, game ends with a tie.");
-        }
-        else if (status.game == COMPLETE){
-            String winner = "";
-            for (int i = 0; i < players.length; i++){
-                if (players[i].getMahjong()) winner = players[i].getName();
-            }
-            System.out.printf("%s wins\n", winner);
-        }
+        endGame(players, status);
     }
 
     public static Status pickAndDrop(Table table, Player[] players, int turn, Status status){
@@ -128,5 +119,18 @@ public class Mahjong {
 
         return 10;
 
+    }
+
+    public static void endGame(Player[] players, Status status){
+        if (status.game == TIE){
+            System.out.println("no more tiles, game ends with a tie.");
+        }
+        else if (status.game == COMPLETE){
+            String winner = "";
+            for (int i = 0; i < players.length; i++){
+                if (players[i].getMahjong()) winner = players[i].getName();
+            }
+            System.out.printf("%s wins\n", winner);
+        }
     }
 }

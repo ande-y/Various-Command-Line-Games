@@ -15,15 +15,16 @@ public class BotPlayer extends Player{
     private static final int KONG = 4;
     private static final int PONG = 3;
     private static final int EYES = 2;
-    private static final int CHOW = 1;
-    private static final int JOINTPARTIAL = 0;
-    private static final int PARTEDPARTIAL = -1;
-    private static final int LONETILE = -2;
+    private static final int LONETILE = 1;
+    private static final int CHOW = 0;
+    private static final int JOINTPARTIAL = -1;
+    private static final int PARTEDPARTIAL = -2;
 
     private static class Meld {
         int type;
         int suit;
         int rank;
+        ArrayList<Tile> tiles = new ArrayList<>();
         ArrayList<WantedTile> wantedTiles = new ArrayList<>();
         public Meld(int type, int suit, int rank){
             this.type = type;
@@ -31,7 +32,9 @@ public class BotPlayer extends Player{
             this.rank = rank;
         }
         public Meld clone(){
-            return new Meld(type, suit, rank);
+            Meld m = new Meld(type, suit, rank);
+            for (Tile t: tiles) m.tiles.add(t);
+            return m;
         }
     }
     private static class WantedTile {
@@ -54,7 +57,7 @@ public class BotPlayer extends Player{
         return 1;
     }
 
-    public static void printMeldList(ArrayList<Meld> list){
+    public static void printCodeMeldList(ArrayList<Meld> list){
         System.out.print("[");
         for (int i = 0; i < list.size(); i++){
             Meld group = list.get(i);
@@ -83,41 +86,12 @@ public class BotPlayer extends Player{
     }
 
     public static void printFancyMeldList(ArrayList<Meld> list){
-        final String[][] tileIndex = 
-            {{"🀇", "🀈", "🀉", "🀊", "🀋", "🀌", "🀍", "🀎", "🀏"},
-             {"🀙", "🀚", "🀛", "🀜", "🀝", "🀞", "🀟", "🀠", "🀡"},
-             {"🀐", "🀑", "🀒", "🀓", "🀔", "🀕", "🀖", "🀗", "🀘"},
-             {"🀀", "🀁", "🀂", "🀃"},
-             {"🀆", "🀅", "🀄"},
-             {"🀢", "🀣", "🀤", "🀥"},
-             {"🀦", "🀧", "🀨", "🀩"}};
-
         System.out.print("[");
-        for (int i = 0; i < list.size(); i++){
-            Meld group = list.get(i);
-            int s = group.suit;
-            int r = group.rank;
-            int t = group.type;
-
-            if (t >= 2){
-                for (int a = 0; a < t; a++) System.out.print(tileIndex[s][r]);
+        for (Meld m: list){
+            for (Tile t: m.tiles){
+                System.out.print(t.getSymbol());
             }
-            else if (t == CHOW){
-                System.out.print(tileIndex[s][r]);
-                System.out.print(tileIndex[s][r + 1]);
-                System.out.print(tileIndex[s][r + 2]);
-            }
-            else if (t == JOINTPARTIAL){
-                System.out.print(tileIndex[s][r]);
-                System.out.print(tileIndex[s][r + 1]);
-            }
-            else if (t == PARTEDPARTIAL){
-                System.out.print(tileIndex[s][r]);
-                System.out.print(tileIndex[s][r + 2]);
-            }
-            if (t == LONETILE) System.out.print(tileIndex[s][r]);
-
-            if (i != list.size() - 1) System.out.print(":");
+            System.out.print(":");
         }
         System.out.print("]");
     }
@@ -151,60 +125,6 @@ public class BotPlayer extends Player{
         
         Tile t = hand.remove(toDrop);
         return t;
-    }
-
-    // map melds' tiles to its respective tile in the hand
-    // subroutine of findTileValues()
-    private ArrayList<ArrayList<Integer>> mapMeldsToHand(ArrayList<Meld> path){
-        ArrayList<ArrayList<Integer>> meldMap = new ArrayList<>();
-
-        boolean[] taken = new boolean[hand.size()];
-        for (int i = 0; i < taken.length; i++) taken[i] = false;
-
-        for (Meld m: path){
-            int type = m.type;
-
-            // load what tile that are being looked for in the meld
-            ArrayList<Tile> toFind = new ArrayList<>();
-            if (type >= 2){
-                for (int i = 0; i < type; i++) toFind.add(new Tile(m.suit, m.rank, ""));
-            }
-            else if (type == CHOW){
-                toFind.add(new Tile(m.suit, m.rank, ""));
-                toFind.add(new Tile(m.suit, m.rank + 1, ""));
-                toFind.add(new Tile(m.suit, m.rank + 2, ""));
-            }
-            else if (type == JOINTPARTIAL){
-                toFind.add(new Tile(m.suit, m.rank, ""));
-                toFind.add(new Tile(m.suit, m.rank + 1, ""));
-            }
-            else if (type == PARTEDPARTIAL){
-                toFind.add(new Tile(m.suit, m.rank, ""));
-                toFind.add(new Tile(m.suit, m.rank + 2, ""));
-            }
-            else if (type == LONETILE){
-                toFind.add(new Tile(m.suit, m.rank, ""));
-            }
-
-            // find the index in the hand which the tile correspond to
-            ArrayList<Integer> tileIndexer = new ArrayList<>();
-            for (Tile t: toFind){
-                boolean found = false;
-                for (int i = 0; i < taken.length; i++){
-                    if (taken[i]) continue;
-                    Tile h = hand.get(i);
-                    if (t.getSuit() == h.getSuit() && t.getRank() == h.getRank()){
-                        tileIndexer.add(i);
-                        taken[i] = true;
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) System.err.printf("<!> looking for s:%d r:%d, can find it.\n", t.getSuit(), t.getRank());
-            }
-            meldMap.add(tileIndexer);
-        }
-        return meldMap;
     }
 
     // subroutine of makeDecision() & evaluate()
@@ -265,7 +185,7 @@ public class BotPlayer extends Player{
                 double[] temps = {ValChow, ValChow, ValChow};
                 
                 ArrayList<WantedTile> wanted = meld.wantedTiles;
-                if (wanted.size() != 1 && wanted.size() != 2) System.err.println("<!> Chow only has 1 or 2 wanted tiles, found " + meld.wantedTiles.size());
+                if (wanted.size() != 1 && wanted.size() != 2) System.err.println("<!> findTileValues: Chow only has 1 or 2 wanted tiles, found " + meld.wantedTiles.size());
                 if (r == 0){
                     temps[1] += wanted.get(0).chance * SplitChow; 
                     temps[2] += wanted.get(0).chance * SplitChow; 
@@ -295,7 +215,7 @@ public class BotPlayer extends Player{
                 double[] temps = {0, 0};
                 
                 ArrayList<WantedTile> wanted = meld.wantedTiles;
-                if (wanted.size() != 1 && wanted.size() != 2) System.err.println("<!> Joint partial only has 1 or 2 wanted tiles, found " + meld.wantedTiles.size());
+                if (wanted.size() != 1 && wanted.size() != 2) System.err.println("<!> findTileValues: Joint partial only has 1 or 2 wanted tiles, found " + meld.wantedTiles.size());
                 for (WantedTile w: wanted){
                     temps[0] += w.chance * ToChow; 
                     temps[1] += w.chance * ToChow; 
@@ -315,7 +235,7 @@ public class BotPlayer extends Player{
                 double[] temps = {0, 0};
                 
                 ArrayList<WantedTile> wanted = meld.wantedTiles;
-                if (wanted.size() != 1) System.err.println("<!> Parted partial only has 1 wanted tiles, found " + meld.wantedTiles.size());
+                if (wanted.size() != 1) System.err.println("<!> findTileValues: Parted partial only has 1 wanted tiles, found " + meld.wantedTiles.size());
                 temps[0] += wanted.get(0).chance * ToChow; 
                 temps[1] += wanted.get(0).chance * ToChow; 
 
@@ -333,7 +253,7 @@ public class BotPlayer extends Player{
                 double temp = 0;
 
                 ArrayList<WantedTile> wanted = meld.wantedTiles;
-                if (meld.wantedTiles.size() != 1) System.err.println("<!> Parted partial only has 1 wanted tiles, found " + meld.wantedTiles.size());
+                if (meld.wantedTiles.size() != 1) System.err.println("<!> findTileValues: Parted partial only has 1 wanted tiles, found " + meld.wantedTiles.size());
                 temp += wanted.get(0).chance * ToEyes; 
 
                 int index = meldMap.get(i).get(0);
@@ -358,7 +278,7 @@ public class BotPlayer extends Player{
         // for duplicates, there can only be 1 wanted tile
         if (meld.wantedTiles.size() != 1) debug();
 
-        if (meld.wantedTiles.size() != 1) System.err.println("<!> Dupe meld supposed to have 1 wanted tile, instead has " + meld.wantedTiles.size());
+        if (meld.wantedTiles.size() != 1) System.err.println("<!> calculateDupeValues: Dupe meld supposed to have 1 wanted tile, instead has " + meld.wantedTiles.size());
         WantedTile wanted = meld.wantedTiles.get(0);
         val += wanted.chance * promotionVal; 
 
@@ -371,26 +291,43 @@ public class BotPlayer extends Player{
         }
     }
     
+    // map melds' tiles to its respective tile in the hand
+    // subroutine of findTileValues()
+    private ArrayList<ArrayList<Integer>> mapMeldsToHand(ArrayList<Meld> path){
+        ArrayList<ArrayList<Integer>> meldMap = new ArrayList<>();
+
+        for (int mIndex = 0; mIndex < path.size(); mIndex++){
+            Meld m = path.get(mIndex);
+            meldMap.add(new ArrayList<>());
+            for (Tile t: m.tiles){
+                for (int i = 0; i < hand.size(); i++){
+                    Tile h = hand.get(i);
+                    if (t == h) meldMap.get(mIndex).add(i);
+                }
+            }
+
+        }
+        return meldMap;
+    }
+
     public void evaluate(Table table){
-        // @SuppressWarnings("rawtypes")
-        // ArrayList[][] tCounter = 
-        //     {{new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>()},
-        //      {new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>()},
-        //      {new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>()},
-        //      {new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>()},
-        //      {new ArrayList<>(), new ArrayList<>(), new ArrayList<>()}};
+        // what's being replicated by below: ArrayList<Tile>[][] tileTracker
+        // this will also the tileCounter
+        ArrayList<ArrayList<ArrayList<Tile>>> tileTracker = new ArrayList<>();
+        for (int i = 0; i < 5; i++){
+            tileTracker.add(new ArrayList<>());
+            int suitSize = 9;
+            if (i == 3) suitSize = 4;
+            else if (i == 4) suitSize = 3;
+            for (int j = 0; j < suitSize; j++) tileTracker.get(i).add(new ArrayList<>());
+        }
 
-        int[][] tileCounter = 
-            {{0, 0, 0, 0, 0, 0, 0, 0, 0},
-             {0, 0, 0, 0, 0, 0, 0, 0, 0},
-             {0, 0, 0, 0, 0, 0, 0, 0, 0},
-             {0, 0, 0, 0},
-             {0, 0, 0}};
-
-        // populate the tileCounter
+        // populate the tileTracker
         for (Tile t: hand){
-            if (t.getSuit() >= 5) System.err.println("<!> Bonus Tile Found in Hand");;
-            tileCounter[t.getSuit()][t.getRank()]++;
+            if (t.getSuit() >= 5) System.err.println("<!> evaluate: Bonus Tile Found in Hand");
+            int s = t.getSuit();
+            int r = t.getRank();
+            tileTracker.get(s).get(r).add(t);
         }
 
         ArrayList<ArrayList<Meld>> craks = new ArrayList<>();
@@ -406,13 +343,13 @@ public class BotPlayer extends Player{
         allPermutations.add(winds);
         allPermutations.add(dragons);
 
-        allPossiblePaths = findAllPossiblePaths(allPermutations, tileCounter);
+        allPossiblePaths = findAllPossiblePaths(allPermutations, tileTracker);
 
         // get counter on what tiles & how many of them can possibly appear in the future
         int[][] remainingTileCounter = table.getDiscardedTilesCounter();
         for (int i = 0; i < remainingTileCounter.length; i++){
             for (int j = 0; j < remainingTileCounter[i].length; j++){
-                remainingTileCounter[i][j] = 4 - (remainingTileCounter[i][j] + tileCounter[i][j]);
+                remainingTileCounter[i][j] = 4 - (remainingTileCounter[i][j] + tileTracker.get(i).get(j).size());
             }
         }
         // for each meld in a permutation, find what tiles are desired/can be stolen
@@ -445,7 +382,7 @@ public class BotPlayer extends Player{
             ArrayList<ArrayList<Meld>> suitPermutations = allPermutations.get(i);
             System.out.printf("%d %-3d ", i, suitPermutations.size());
             for (int j = 0; j < suitPermutations.size(); j++){
-                printMeldList(suitPermutations.get(j));
+                printCodeMeldList(suitPermutations.get(j));
             }
             System.out.println();
         }
@@ -475,9 +412,9 @@ public class BotPlayer extends Player{
         for (int i = 0; i < hand.size(); i++) System.out.print(hand.get(i).getSymbol());
         System.out.println("\nPossible plays from this hand: " + allPossiblePaths.size());
         // print tileCounter
-        for (int i = 0; i < tileCounter.length; i++){
-            for (int j = 0; j < tileCounter[i].length; j++){
-                System.out.print(tileCounter[i][j] + " ");
+        for (int i = 0; i < tileTracker.size(); i++){
+            for (int j = 0; j < tileTracker.get(i).size(); j++){
+                System.out.print(tileTracker.get(i).get(j).size() + " ");
             }
             System.out.println();
         }
@@ -493,21 +430,7 @@ public class BotPlayer extends Player{
         return;
     }
 
-    // subroutine of findWantedTilesForAllMelds
-    private void checkDupeWantedTiles(ArrayList<WantedTile> usefulTiles, Meld meld, int suit, int rank, int remaining){
-        for (WantedTile w: usefulTiles){
-            if (w.suit == suit && w.rank == rank){
-                w.priority++;
-                meld.wantedTiles.add(w);
-                return;
-            }
-        }
-        WantedTile w = new WantedTile(remaining, suit, rank);
-        usefulTiles.add(w);
-        meld.wantedTiles.add(w);
-        return;
-    }
-
+    // subroutine of evaluate()
     // populate each meld's wantedTiles<>
     private void findWantedTiles(ArrayList<ArrayList<Meld>> suitPermutations, int[] remainingTileCounterSubset){
         for (ArrayList<Meld> onePermutation: suitPermutations){
@@ -531,24 +454,28 @@ public class BotPlayer extends Player{
                 else if (type == PARTEDPARTIAL){
                     checkDupeWantedTiles(usefulTiles, meld, s, r + 1, remainingTileCounterSubset[r + 1]);
                 }
-                else System.err.println("<!> unknown meld found");
+                else System.err.println("<!> findWantedTile: unknown meld found");
             }
             usefulTiles.clear();
         }
     }
 
-    // subroutine of findAllPossiblePaths()
-    private static ArrayList<Meld> combineArrayLists(ArrayList<Meld> craks, ArrayList<Meld> dots, ArrayList<Meld> sticks, ArrayList<Meld> winds, ArrayList<Meld> dragons){
-        ArrayList<Meld> result = new ArrayList<>(); 
-        for (Meld m: craks) result.add(m);
-        for (Meld m: dots) result.add(m);
-        for (Meld m: sticks) result.add(m);
-        for (Meld m: winds) result.add(m);
-        for (Meld m: dragons) result.add(m);
-        return result;
+    // subroutine of findWantedTilesForAllMelds()
+    private void checkDupeWantedTiles(ArrayList<WantedTile> usefulTiles, Meld meld, int suit, int rank, int remaining){
+        for (WantedTile w: usefulTiles){
+            if (w.suit == suit && w.rank == rank){
+                w.priority++;
+                meld.wantedTiles.add(w);
+                return;
+            }
+        }
+        WantedTile w = new WantedTile(remaining, suit, rank);
+        usefulTiles.add(w);
+        meld.wantedTiles.add(w);
+        return;
     }
-    
-    private ArrayList<ArrayList<Meld>> findAllPossiblePaths(ArrayList<ArrayList<ArrayList<Meld>>> allPermutations, int[][] tileCounter){
+
+    private ArrayList<ArrayList<Meld>> findAllPossiblePaths(ArrayList<ArrayList<ArrayList<Meld>>> allPermutations, ArrayList<ArrayList<ArrayList<Tile>>> tileTracker){
         ArrayList<ArrayList<Meld>> craks = allPermutations.get(0);
         ArrayList<ArrayList<Meld>> dots = allPermutations.get(1);
         ArrayList<ArrayList<Meld>> sticks = allPermutations.get(2);
@@ -557,7 +484,7 @@ public class BotPlayer extends Player{
 
         // find permutations possible for each suit disjointly
         for (int i = 0; i < allPermutations.size(); i++){
-            int[] tileCounterSubset = tileCounter[i].clone();
+            ArrayList<ArrayList<Tile>> tileTrackerSubset = tileTracker.get(i);
             ArrayList<Meld> melds = new ArrayList<>(); 
             
          /* This program will use 2 form of memoization to optimize the outputs for finding permutations.
@@ -573,47 +500,26 @@ public class BotPlayer extends Player{
                 permutation. But the more permutations there are, the longer this algorithm takes. */
             ArrayList<int[]> memoEyes = new ArrayList<>();
 
-            if (i <= 2) scanDupes(i , allPermutations.get(i), melds, tileCounterSubset, memoEyes, 4, true);
-            else scanHonors(i, allPermutations.get(i), melds, tileCounterSubset, memoEyes, 4, true);
+            if (i <= 2) scanDupes(i , allPermutations.get(i), melds, tileTrackerSubset, memoEyes, 4, true);
+            else scanHonors(i, allPermutations.get(i), melds, tileTrackerSubset, memoEyes, 4, true);
         }
 
-        // join the 
-
-        // if a suit has no possible melds, insert an empty set
-        for (ArrayList<ArrayList<Meld>> suitPermutations: allPermutations){
+        // if a suit has no possible melds, insert set with only lone tiles
+        // if no lone tiles, insert an empty set
+        for (int s = 0; s < allPermutations.size(); s++){
+            ArrayList<ArrayList<Meld>> suitPermutations = allPermutations.get(s);
+            ArrayList<ArrayList<Tile>> tileTrackerSubset = tileTracker.get(s);
             if (suitPermutations.size() == 0){
-                ArrayList<Meld> empty = new ArrayList<>(); 
-                suitPermutations.add(empty);
-            }
-        }
-
-        // append remaining lone tile if any to repective permutations
-        for (int suit = 0; suit < allPermutations.size(); suit++){
-            ArrayList<ArrayList<Meld>> suitPermutations = allPermutations.get(suit);
-            for (ArrayList<Meld> onePermutation: suitPermutations){
-                int[] tileCounterSubsetCopy = tileCounter[suit].clone();
-                for (Meld m: onePermutation){
-                    if (m.type >= 2){
-                        tileCounterSubsetCopy[m.rank] -=  m.type;
-                    }
-                    else if (m.type == CHOW){
-                        tileCounterSubsetCopy[m.rank] -=  1;
-                        tileCounterSubsetCopy[m.rank + 1] -=  1;
-                        tileCounterSubsetCopy[m.rank + 2] -=  1;
-                    }
-                    else if (m.type == JOINTPARTIAL){
-                        tileCounterSubsetCopy[m.rank] -=  1;
-                        tileCounterSubsetCopy[m.rank + 1] -=  1;
-                    }
-                    else if (m.type == PARTEDPARTIAL){
-                        tileCounterSubsetCopy[m.rank] -=  1;
-                        tileCounterSubsetCopy[m.rank + 2] -=  1;
+                ArrayList<Meld> temp = new ArrayList<>();
+                for (int r = 0; r < tileTrackerSubset.size(); r++){
+                    ArrayList<Tile> rankTracker = tileTrackerSubset.get(r);
+                    if (rankTracker.size() == 1){
+                        Meld loneTileMeld = new Meld(LONETILE, s, r);
+                        loneTileMeld.tiles.add(rankTracker.get(0));
+                        temp.add(loneTileMeld);
                     }
                 }
-                for (int i = 0; i < tileCounterSubsetCopy.length; i++){
-                    if (tileCounterSubsetCopy[i] == 1) onePermutation.add(new Meld(LONETILE, suit, i));
-                    else if (tileCounterSubsetCopy[i] != 0) System.err.println("<!> tile subtraction error");
-                }
+                suitPermutations.add(temp);
             }
         }
         
@@ -624,8 +530,13 @@ public class BotPlayer extends Player{
                 for (int c = 0; c < sticks.size(); c++){
                     for (int d = 0; d < winds.size(); d++){
                         for (int e = 0; e < dragons.size(); e++){
-                            ArrayList<Meld> temp = combineArrayLists(craks.get(a), dots.get(b), sticks.get(c), winds.get(d), dragons.get(e));
-                            allPossiblePaths.add(temp);
+                            ArrayList<Meld> result = new ArrayList<>(); 
+                            for (Meld m: craks.get(a)) result.add(m);
+                            for (Meld m: dots.get(b)) result.add(m);
+                            for (Meld m: sticks.get(c)) result.add(m);
+                            for (Meld m: winds.get(d)) result.add(m);
+                            for (Meld m: dragons.get(e)) result.add(m);
+                            allPossiblePaths.add(result);
                         }
                     }
                 }
@@ -635,8 +546,129 @@ public class BotPlayer extends Player{
         return allPossiblePaths;
     }
 
-    // subroutine of all scan melds functions
-    private static boolean checkIfNewPath(ArrayList<int[]> memo, int[] tileCounterSubset){
+    // decending the list, recurse/chain call functions
+    // scanHonors(4) | scanDupes(4):            kong            {n, n, n, n}
+    // scanHonors(3) | scanDupes(3):            pongs           {n, n, n}
+    // scanHonors(2) | scanDupes(2):            eyes            {n, n}
+    //                 scanChow():              complete chows  {n, n+1, n+2}
+    //                 scanJointPartialChow():  partial chows   {n, n+1}
+    //                 scanPartialPartedChow(): partial chow    {n, n+2}
+
+    private void scanHonors(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, ArrayList<ArrayList<Tile>> tileTrackerSubset, ArrayList<int[]> memoEyes, int copies, boolean isFunc1stInstance){
+        stackFrameCounter++; // DEBUG COUNTER 
+        if (copies == 2 && !checkIfNewPath(memoEyes, tileTrackerSubset)) return;
+
+        boolean everCreatedMeld = false;
+        for (int r = 0; r < tileTrackerSubset.size(); r++){
+            if (tileTrackerSubset.get(r).size() >= copies){
+                everCreatedMeld = true;
+                captureMeld(melds, tileTrackerSubset, copies, suit, r);
+                
+                scanHonors(suit, suitPermutations, melds, tileTrackerSubset, memoEyes, copies, false);
+                
+                releaseMeld(melds, tileTrackerSubset);
+            }
+        }
+
+        if (copies > 2){
+            if (isFunc1stInstance) memoEyes.clear();
+            scanHonors(suit, suitPermutations, melds, tileTrackerSubset, memoEyes, copies - 1, true);
+        }
+
+        if (!everCreatedMeld && !melds.isEmpty() && checkNewSequence(suitPermutations, melds)){
+            addToPermutations(suitPermutations, melds, tileTrackerSubset, suit);
+        }
+    }
+
+    private void scanDupes(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, ArrayList<ArrayList<Tile>> tileTrackerSubset, ArrayList<int[]> memoEyes, int copies, boolean isFunc1stInstance){
+        stackFrameCounter++; // DEBUG COUNTER
+        if (copies == 2 && !checkIfNewPath(memoEyes, tileTrackerSubset)) return;
+
+        for (int r = 0; r < 9; r++){
+            if (tileTrackerSubset.get(r).size() >= copies){
+                // copies: 4 = kong, 3 = pong, 2 = eyes
+                captureMeld(melds, tileTrackerSubset, copies, suit, r);
+
+                scanDupes(suit, suitPermutations, melds, tileTrackerSubset, memoEyes, copies, false);
+
+                // "release" the tiles, undo the set afterwards
+                // this allows backtracking for all possible permutations sets of melds 
+                releaseMeld(melds, tileTrackerSubset);
+            }
+        }
+
+        // if no kongs, start looking for pongs, then eyes
+        if (copies > 2){
+            /* the memo list when the 1st stack frame is searching for kongs/pongs turns out to be the same when it's 
+               searching for eyes, therefore the list must be cleared before searching for eyes, since all path 
+               identifiers (tileSubsetCounter variations) have already been memoized when searching kongs/pongs */
+            if (isFunc1stInstance) memoEyes.clear();
+            scanDupes(suit, suitPermutations, melds, tileTrackerSubset, memoEyes, copies - 1, true);
+        }
+        // after eyes, start searching for chows
+        else scanChow(suit, suitPermutations, melds, tileTrackerSubset);
+    }
+
+    private void scanChow(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, ArrayList<ArrayList<Tile>> tileTrackerSubset){
+        stackFrameCounter++; // DEBUG COUNTER
+
+        for (int r = 0; r < 7; r++){
+            if (tileTrackerSubset.get(r).size() == 0) continue;
+            if (tileTrackerSubset.get(r + 1).size() == 0) continue;
+            if (tileTrackerSubset.get(r + 2).size() == 0) continue;
+
+            captureMeld(melds, tileTrackerSubset, CHOW, suit, r);
+
+            scanChow(suit, suitPermutations, melds, tileTrackerSubset);
+            
+            releaseMeld(melds, tileTrackerSubset);
+        }
+        scanJointPartialChow(suit, suitPermutations, melds, tileTrackerSubset);
+    }
+
+    private void scanJointPartialChow(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, ArrayList<ArrayList<Tile>> tileTrackerSubset){
+        stackFrameCounter++; // DEBUG COUNTER
+
+        for (int r = 0; r < 8; r++){
+            if (tileTrackerSubset.get(r).size() == 0) continue;
+            if (tileTrackerSubset.get(r + 1).size() == 0) continue;
+
+            captureMeld(melds, tileTrackerSubset, JOINTPARTIAL, suit, r);
+
+            scanJointPartialChow(suit, suitPermutations, melds, tileTrackerSubset);
+
+            releaseMeld(melds, tileTrackerSubset);
+        }
+        scanPartedPartialChow(suit, suitPermutations, melds, tileTrackerSubset);
+    }
+
+    private void scanPartedPartialChow(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, ArrayList<ArrayList<Tile>> tileTrackerSubset){
+        stackFrameCounter++; // DEBUG COUNTER
+
+        boolean everCreatedMeld = false;
+        for (int r = 0; r < 7; r++){
+            if (tileTrackerSubset.get(r).size() == 0) continue;
+            if (tileTrackerSubset.get(r + 2).size() == 0) continue;
+            everCreatedMeld = true;
+
+            captureMeld(melds, tileTrackerSubset, PARTEDPARTIAL, suit, r);
+
+            scanPartedPartialChow(suit, suitPermutations, melds, tileTrackerSubset);
+            
+            releaseMeld(melds, tileTrackerSubset);
+        }
+
+        // record the possible set of melds when no more sets can be formed
+        if (!everCreatedMeld && !melds.isEmpty() && checkNewSequence(suitPermutations, melds)){
+            addToPermutations(suitPermutations, melds, tileTrackerSubset, suit);
+        }
+    }
+
+    // memoization subroutine of all scan melds functions
+    private static boolean checkIfNewPath(ArrayList<int[]> memo, ArrayList<ArrayList<Tile>> tileTrackerSubset){
+        int[] tileCounterSubset = new int[tileTrackerSubset.size()];
+        for (int rank = 0; rank < tileTrackerSubset.size(); rank++) tileCounterSubset[rank] = tileTrackerSubset.get(rank).size(); 
+        
         for (int[] memoElt: memo){
             for (int j = 0; j < tileCounterSubset.length; j++){
                 tileCounterChecks++; /// DEBUG COUNTER
@@ -651,155 +683,7 @@ public class BotPlayer extends Player{
         return true;
     }
 
-    // decending the list, recurse/chain call functions
-    // scanHonors(4) | scanDupes(4):            kong            {n, n, n, n}
-    // scanHonors(3) | scanDupes(3):            pongs           {n, n, n}
-    // scanHonors(2) | scanDupes(2):            eyes            {n, n}
-    //                 scanChow():              complete chows  {n, n+1, n+2}
-    //                 scanJointPartialChow():  partial chows   {n, n+1}
-    //                 scanPartialPartedChow(): partial chow    {n, n+2}
-
-    private void scanHonors(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, ArrayList<int[]> memoEyes, int copies, boolean isFunc1stInstance){
-        stackFrameCounter++; // DEBUG COUNTER 
-        if (copies == 2 && !checkIfNewPath(memoEyes, tileCounterSubset)) return;
-
-        boolean everCreatedMeld = false;
-        for (int i = 0; i < tileCounterSubset.length; i++){
-            if (tileCounterSubset[i] >= copies){
-                everCreatedMeld = true;
-                tileCounterSubset[i] -= copies;
-
-                melds.add(new Meld(copies, suit, i));
-                scanHonors(suit, suitPermutations, melds, tileCounterSubset, memoEyes, copies, false);
-
-                tileCounterSubset[i] += copies;
-                melds.remove(melds.size() - 1);
-            }
-        }
-
-        if (copies > 2){
-            if (isFunc1stInstance) memoEyes.clear();
-            scanHonors(suit, suitPermutations, melds, tileCounterSubset, memoEyes, copies - 1, true);
-        }
-
-        if (!everCreatedMeld && !melds.isEmpty() && checkNewSequence(suitPermutations, melds)){
-            ArrayList<Meld> deepCopy = new ArrayList<>();
-            for(int i = 0; i < melds.size(); i++) deepCopy.add(melds.get(i).clone());
-            suitPermutations.add(deepCopy);
-        }
-    }
-
-    private void scanDupes(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset, ArrayList<int[]> memoEyes, int copies, boolean isFunc1stInstance){
-        stackFrameCounter++; // DEBUG COUNTER
-        if (copies == 2 && !checkIfNewPath(memoEyes, tileCounterSubset)) return;
-
-        for (int i = 0; i < 9; i++){
-            if (tileCounterSubset[i] >= copies){
-                tileCounterSubset[i] -= copies;
-
-                // copies: 4 = kong, 3 = pong, 2 = eyes
-                melds.add(new Meld(copies, suit, i));
-                scanDupes(suit, suitPermutations, melds, tileCounterSubset, memoEyes, copies, false);
-
-                // "release" the tiles, undo the set afterwards
-                // this allows backtracking for all possible permutations sets of melds 
-                tileCounterSubset[i] += copies;
-                melds.remove(melds.size() - 1);
-            }
-        }
-
-        // if no kongs, start looking for pongs, then eyes
-        if (copies > 2){
-            /* the memo list when the 1st stack frame is searching for kongs/pongs turns out to be the same when it's 
-               searching for eyes, therefore the list must be cleared before searching for eyes, since all path 
-               identifiers (tileSubsetCounter variations) have already been memoized when searching kongs/pongs */
-            if (isFunc1stInstance) memoEyes.clear();
-            scanDupes(suit, suitPermutations, melds, tileCounterSubset, memoEyes, copies - 1, true);
-        }
-        // after eyes, start searching for chows
-        else scanChow(suit, suitPermutations, melds, tileCounterSubset);
-    }
-
-    private void scanChow(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset){
-        stackFrameCounter++; // DEBUG COUNTER
-
-        for (int i = 0; i < 7; i++){
-            if (tileCounterSubset[i] == 0) continue;
-            if (tileCounterSubset[i + 1] == 0) continue;
-            if (tileCounterSubset[i + 2] == 0) continue;
-
-            tileCounterSubset[i] -= 1;
-            tileCounterSubset[i + 1] -= 1;
-            tileCounterSubset[i + 2] -= 1;
-
-            melds.add(new Meld(CHOW, suit, i));
-
-            scanChow(suit, suitPermutations, melds, tileCounterSubset);
-            
-            // "release" the tiles, undo the set afterwards
-            // this allows backtracking for all possible permutations sets of melds 
-            tileCounterSubset[i] += 1;
-            tileCounterSubset[i + 1] += 1;
-            tileCounterSubset[i + 2] += 1;
-            melds.remove(melds.size() - 1);
-        }
-        scanJointPartialChow(suit, suitPermutations, melds, tileCounterSubset);
-    }
-
-    private void scanJointPartialChow(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset){
-        stackFrameCounter++; // DEBUG COUNTER
-
-        for (int i = 0; i < 8; i++){
-            if (tileCounterSubset[i] == 0) continue;
-            if (tileCounterSubset[i + 1] == 0) continue;
-
-            tileCounterSubset[i] -= 1;
-            tileCounterSubset[i + 1] -= 1;
-
-            melds.add(new Meld(JOINTPARTIAL, suit, i));
-
-            scanJointPartialChow(suit, suitPermutations, melds, tileCounterSubset);
-            
-            // "release" the tiles, undo the set afterwards
-            // this allows backtracking for all possible permutations sets of melds 
-            tileCounterSubset[i] += 1;
-            tileCounterSubset[i + 1] += 1;
-            melds.remove(melds.size() - 1);
-        }
-        scanPartedPartialChow(suit, suitPermutations, melds, tileCounterSubset);
-    }
-
-    private void scanPartedPartialChow(int suit, ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, int[] tileCounterSubset){
-        stackFrameCounter++; // DEBUG COUNTER
-
-        boolean everCreatedMeld = false;
-        for (int i = 0; i < 7; i++){
-            if (tileCounterSubset[i] == 0) continue;
-            if (tileCounterSubset[i + 2] == 0) continue;
-
-            everCreatedMeld = true;
-            tileCounterSubset[i] -= 1;
-            tileCounterSubset[i + 2] -= 1;
-
-            melds.add(new Meld(PARTEDPARTIAL, suit, i));
-
-            scanPartedPartialChow(suit, suitPermutations, melds, tileCounterSubset);
-            
-            // "release" the tiles, undo the set afterwards
-            // this allows backtracking for all possible permutations sets of melds 
-            tileCounterSubset[i] += 1;
-            tileCounterSubset[i + 2] += 1;
-            melds.remove(melds.size() - 1);
-        }
-
-        // record the possible set of melds when no more sets can be formed
-        if (!everCreatedMeld && !melds.isEmpty() && checkNewSequence(suitPermutations, melds)){
-            ArrayList<Meld> deepCopy = new ArrayList<>();
-            for(int i = 0; i < melds.size(); i++) deepCopy.add(melds.get(i).clone());
-            suitPermutations.add(deepCopy);
-        }
-    }
-
+    // memoization subroutine of functions which add candidate permutation, scanHonors() & scanPartedPartialChow()
     // ensures no subsets are added to the suitPermutations
     private boolean checkNewSequence(ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds){
         if (suitPermutations.isEmpty()) return true;
@@ -831,5 +715,68 @@ public class BotPlayer extends Player{
 
         return false;
     }
-   
+
+    // subroutine of scan... Honors(), Dupes(), Chows(), JointPartialChow(), PartedPartialChow()
+    private void captureMeld(ArrayList<Meld> melds, ArrayList<ArrayList<Tile>> tileTrackerSubset, int type, int suit, int rank){
+        Meld newMeld = new Meld(type, suit, rank);
+
+        // lone tile melds are created by another process
+        if (type == KONG || type == PONG || type == EYES){
+            ArrayList<Tile> rankTracker = tileTrackerSubset.get(rank);
+            for (int i = 0; i < type; i++){
+                Tile t = rankTracker.remove(0);
+                newMeld.tiles.add(t);
+            }
+        }
+        else if (type == CHOW || type == JOINTPARTIAL || type == PARTEDPARTIAL) {
+            for (int i = 0; i < 3; i++){
+                // CHOW will complete all 3 iterations
+                if (type == JOINTPARTIAL && i == 2) continue;
+                if (type == PARTEDPARTIAL && i == 1) continue;
+
+                ArrayList<Tile> rankTracker = tileTrackerSubset.get(rank + i);
+                Tile t = rankTracker.remove(0);
+                newMeld.tiles.add(t);
+            }
+        }
+        else System.err.println("<!> captureMeld: unknown meld type found");
+
+        melds.add(newMeld);
+    }
+
+    // subroutine of scan... Honors(), Dupes(), Chows(), JointPartialChow(), PartedPartialChow()
+    private void releaseMeld(ArrayList<Meld> melds, ArrayList<ArrayList<Tile>> tileTrackerSubset){
+        Meld toRemove = melds.remove(melds.size() - 1);
+        for (Tile t: toRemove.tiles){
+            int r = t.getRank();
+            tileTrackerSubset.get(r).add(t);
+        }
+    }
+
+    // subroutine of functions which add candidate permutation, scanHonors() & scanPartedPartialChow()
+    // gets deep copy of the permutation (excluding meld's tiles) & appends remaining lone tiles to the permutation
+    private void addToPermutations(ArrayList<ArrayList<Meld>> suitPermutations, ArrayList<Meld> melds, ArrayList<ArrayList<Tile>> tileTrackerSubset, int suit){
+        // record what is in the list
+        ArrayList<Meld> deepCopy = new ArrayList<>();
+        for(int i = 0; i < melds.size(); i++) deepCopy.add(melds.get(i).clone());
+
+        // append any lone tiles to the list
+        for (int r = 0; r < tileTrackerSubset.size(); r++){
+            int remaining = tileTrackerSubset.get(r).size();
+            if (remaining == 0) continue;
+            else if (remaining == 1){
+                // we dont use captureMeld() because it deducts from the tileTrackerSubset 
+                Meld tempLoneMeld = new Meld(LONETILE, suit, r);
+                Tile t = tileTrackerSubset.get(r).get(0);
+                tempLoneMeld.tiles.add(t);
+
+                deepCopy.add(tempLoneMeld);
+            }
+            else System.err.printf("<!> addToPermutation: remaining suit:%d rank:%d %d tiles not used to create larger sets\n", remaining, suit, r);
+        }
+
+        // add as new permutation
+        suitPermutations.add(deepCopy);
+    }
+
 }
