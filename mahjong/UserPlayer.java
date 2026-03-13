@@ -22,7 +22,7 @@ public class UserPlayer extends Player {
         return hand.remove(index - 1);
     }
 
-    public int askToSteal(int playThatCanChow){
+    public int askToSteal(int canChow){
         return 1;
     }
 

@@ -12,88 +12,20 @@ public class BotPlayer extends Player{
     static int subsetCheckOccurence = 0;
     static int tileCounterChecks = 0;
 
-    private static final int KONG = 4;
-    private static final int PONG = 3;
-    private static final int EYES = 2;
-    private static final int LONETILE = 1;
-    private static final int CHOW = 0;
-    private static final int JOINTPARTIAL = -1;
-    private static final int PARTEDPARTIAL = -2;
-
-    private static class Meld {
-        int type;
-        int suit;
-        int rank;
-        ArrayList<Tile> tiles = new ArrayList<>();
-        ArrayList<WantedTile> wantedTiles = new ArrayList<>();
-        public Meld(int type, int suit, int rank){
-            this.type = type;
-            this.suit = suit;
-            this.rank = rank;
-        }
-        public Meld clone(){
-            Meld m = new Meld(type, suit, rank);
-            for (Tile t: tiles) m.tiles.add(t);
-            return m;
-        }
-    }
-    private static class WantedTile {
-        int chance;
-        int priority = 1;
-        int suit;
-        int rank;
-        public WantedTile(int chance, int suit, int rank){
-            this.chance = chance;
-            this.suit = suit;
-            this.rank = rank;
-        }
-    }
+    final int KONG = 4;
+    final int PONG = 3;
+    final int EYES = 2;
+    final int LONETILE = 1;
+    final int CHOW = 0;
+    final int JOINTPARTIAL = -1;
+    final int PARTEDPARTIAL = -2;
 
     public BotPlayer(String n){
         super(n);
     }
 
-    public int askToSteal(int playThatCanChow){
+    public int askToSteal(boolean canChow){
         return 1;
-    }
-
-    public static void printCodeMeldList(ArrayList<Meld> list){
-        System.out.print("[");
-        for (int i = 0; i < list.size(); i++){
-            Meld group = list.get(i);
-            
-            String type = "";
-            switch (group.type) {
-                case KONG:
-                    type = "K"; break;
-                case PONG:
-                    type = "P"; break;
-                case EYES:
-                    type = "E"; break;                    
-                case CHOW:
-                    type = "C"; break;
-                case JOINTPARTIAL:
-                    type = "j"; break;
-                case PARTEDPARTIAL:
-                    type = "p"; break;
-                case LONETILE:
-                    type = "l"; break;
-            }
-            System.out.print(type + ":" + (group.rank + 1));
-            if (i != list.size() - 1) System.out.print(" ");
-        }
-        System.out.print("] ");
-    }
-
-    public static void printFancyMeldList(ArrayList<Meld> list){
-        System.out.print("[");
-        for (Meld m: list){
-            for (Tile t: m.tiles){
-                System.out.print(t.getSymbol());
-            }
-            System.out.print(":");
-        }
-        System.out.print("]");
     }
 
     public Tile makeDecision(Table table){
@@ -171,7 +103,7 @@ public class BotPlayer extends Player{
                 for (WantedTile w: m.wantedTiles) wantedByOthers.add(w);
             }
 
-            if (t <= KONG && t >= CHOW && t != EYES) meldsComplete++;
+            if (t == KONG || t == PONG || t == CHOW) meldsComplete++;
             if (t == EYES) eyesComplete = true;
 
             // 1. set all tiles within there respective melds a value
@@ -275,9 +207,6 @@ public class BotPlayer extends Player{
     private void calculateDupeValues(double[] valuePerTile, Meld meld, int meldIndex, ArrayList<WantedTile> wantedByOthers, ArrayList<ArrayList<Integer>> meldIndexer, double baseVal, double promotionVal, double MultiMeldBonus){
         double val = baseVal;
 
-        // for duplicates, there can only be 1 wanted tile
-        if (meld.wantedTiles.size() != 1) debug();
-
         if (meld.wantedTiles.size() != 1) System.err.println("<!> calculateDupeValues: Dupe meld supposed to have 1 wanted tile, instead has " + meld.wantedTiles.size());
         WantedTile wanted = meld.wantedTiles.get(0);
         val += wanted.chance * promotionVal; 
@@ -368,63 +297,42 @@ public class BotPlayer extends Player{
         }
 
         { /// DEBUG START
-        final String[][] tileIndex = 
-            {{"🀇", "🀈", "🀉", "🀊", "🀋", "🀌", "🀍", "🀎", "🀏"},
-             {"🀙", "🀚", "🀛", "🀜", "🀝", "🀞", "🀟", "🀠", "🀡"},
-             {"🀐", "🀑", "🀒", "🀓", "🀔", "🀕", "🀖", "🀗", "🀘"},
-             {"🀀", "🀁", "🀂", "🀃"},
-             {"🀆", "🀅", "🀄"},
-             {"🀢", "🀣", "🀤", "🀥"},
-             {"🀦", "🀧", "🀨", "🀩"}};
-        // print permutations of individual suits
-        System.out.println("printing all Permutations of all suits: ");
-        for (int i = 0; i < allPermutations.size(); i++){
-            ArrayList<ArrayList<Meld>> suitPermutations = allPermutations.get(i);
-            System.out.printf("%d %-3d ", i, suitPermutations.size());
-            for (int j = 0; j < suitPermutations.size(); j++){
-                printCodeMeldList(suitPermutations.get(j));
-            }
-            System.out.println();
-        }
-        System.out.println();
-        // print tiles unicode grapahics
+        // // print permutations of individual suits
+        // System.out.println("printing all Permutations of all suits: ");
+        // for (int i = 0; i < allPermutations.size(); i++){
+        //     ArrayList<ArrayList<Meld>> suitPermutations = allPermutations.get(i);
+        //     System.out.printf("%d %-3d ", i, suitPermutations.size());
+        //     for (int j = 0; j < suitPermutations.size(); j++){
+        //         Print.printCodeMeldList(suitPermutations.get(j));
+        //     }
+        //     System.out.println();
+        // }
+        // System.out.println();
+        // // print tiles unicode grapahics
         for (int i = 0; i < allPossiblePaths.size(); i++){
             System.out.printf("%.2f ", valueOfPossiblePaths.get(i));            
             ArrayList<Meld> possiblePlay = allPossiblePaths.get(i);
-            printFancyMeldList(possiblePlay);
-            System.out.print(" - [");
-            ArrayList<WantedTile> record = new ArrayList<>();
-            for (Meld meld: possiblePlay){
-                for (int j = 0; j < meld.wantedTiles.size(); j++){
-                    WantedTile w = meld.wantedTiles.get(j);
-                    boolean quit = false;
-                    for (WantedTile r: record) if (r == w) quit = true;
-                    if (quit) break;
-                    record.add(w);
-                    System.out.print(w.chance + tileIndex[w.suit][w.rank]);
-                    System.out.print(w.priority + " ");
-                }
-            }
-            record.clear();
-            System.out.println("]");
+            Print.printFancyMeldList(possiblePlay);
+            System.out.print(" - ");
+            Print.printWantedTiles(possiblePlay);
         }
-        System.out.println();
         for (int i = 0; i < hand.size(); i++) System.out.print(hand.get(i).getSymbol());
-        System.out.println("\nPossible plays from this hand: " + allPossiblePaths.size());
-        // print tileCounter
-        for (int i = 0; i < tileTracker.size(); i++){
-            for (int j = 0; j < tileTracker.get(i).size(); j++){
-                System.out.print(tileTracker.get(i).get(j).size() + " ");
-            }
-            System.out.println();
-        }
-        // print info
-        System.out.println("Total permutations: " + (craks.size() + dots.size() + sticks.size() + winds.size() + dragons.size()));
-        System.out.println("Total tileCounterSubset[]s memoized: " + memoOccurence);
-        System.out.println("Total tileCounterSubset[]s checked: " + tileCounterChecks);
-        System.out.println("Total subsetChecks occured: " + subsetCheckOccurence);
-        System.out.println("Total stack frames invoked: " + stackFrameCounter);
         System.out.println();
+        // System.out.println("\nPossible plays from this hand: " + allPossiblePaths.size());
+        // // print tileCounter
+        // for (int i = 0; i < tileTracker.size(); i++){
+        //     for (int j = 0; j < tileTracker.get(i).size(); j++){
+        //         System.out.print(tileTracker.get(i).get(j).size() + " ");
+        //     }
+        //     System.out.println();
+        // }
+        // // print info
+        // System.out.println("Total permutations: " + (craks.size() + dots.size() + sticks.size() + winds.size() + dragons.size()));
+        // System.out.println("Total tileCounterSubset[]s memoized: " + memoOccurence);
+        // System.out.println("Total tileCounterSubset[]s checked: " + tileCounterChecks);
+        // System.out.println("Total subsetChecks occured: " + subsetCheckOccurence);
+        // System.out.println("Total stack frames invoked: " + stackFrameCounter);
+        // System.out.println();
         } /// DEBUG END
 
         return;
@@ -460,7 +368,7 @@ public class BotPlayer extends Player{
         }
     }
 
-    // subroutine of findWantedTilesForAllMelds()
+    // subroutine of findWantedTiles()
     private void checkDupeWantedTiles(ArrayList<WantedTile> usefulTiles, Meld meld, int suit, int rank, int remaining){
         for (WantedTile w: usefulTiles){
             if (w.suit == suit && w.rank == rank){

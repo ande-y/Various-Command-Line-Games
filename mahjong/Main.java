@@ -2,7 +2,7 @@ package mahjong;
 
 import java.util.Random;
 
-public class Mahjong {
+public class Main {
     private static final int NOSTEAL = -1;
     private static final int CHOW = 0;
     private static final int PONG = 1;
@@ -38,15 +38,36 @@ public class Mahjong {
 
         for (int i = 0; i < players.length; i++){
             for (int j = 0; j < 13; j++){
-                while (players[i].pickTile(table.giveTile()));
+                while (players[0].pickTile(table.giveTile())){
+                    if (table.noMoreTiles()){
+                        System.out.println("x no more");
+                        System.exit(0); 
+                    }
+                }
             }
         }
 
-        while (players[0].pickTile(table.giveTile()));
-        long start = System.currentTimeMillis();
-        players[0].evaluate(table);
-        long end = System.currentTimeMillis();
-        System.out.println("Time elapsed for eval: " + (end - start));
+        while (!players[0].getMahjong()){
+            while (players[0].pickTile(table.giveTile())){
+                if (table.noMoreTiles()){
+                    System.out.println("x no more");
+                    System.exit(0); 
+                }
+            }
+            players[0].evaluate(table);
+            players[0].makeDecision(table);
+            if (table.noMoreTiles()){
+                System.out.println("no more");
+                System.exit(0);
+            }
+        }
+        System.out.println("win");
+        System.exit(0);
+
+        // long start = System.currentTimeMillis();
+        // players[0].evaluate(table);
+        // long end = System.currentTimeMillis();
+        // System.out.println("Time elapsed for eval: " + (end - start));
 
         // playGame(table, players);
     }
