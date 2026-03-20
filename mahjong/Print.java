@@ -23,7 +23,7 @@ public class Print {
             Meld group = list.get(i);
             
             String type = "";
-            switch (group.type) {
+            switch (group.getType()) {
                 case KONG:
                     type = "K"; break;
                 case PONG:
@@ -39,7 +39,7 @@ public class Print {
                 case LONETILE:
                     type = "l"; break;
             }
-            System.out.print(type + ":" + (group.rank + 1));
+            System.out.print(type + ":" + (group.getRank() + 1));
             if (i != list.size() - 1) System.out.print(" ");
         }
         System.out.print("] ");

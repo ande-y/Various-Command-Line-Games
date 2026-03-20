@@ -3,13 +3,6 @@ package mahjong;
 import java.util.ArrayList;
 
 public class Algorithm {
-    final static int KONG = 4;
-    final static int PONG = 3;
-    final static int EYES = 2;
-    final static int LONETILE = 1;
-    final static int CHOW = 0;
-    final static int JOINTPARTIAL = -1;
-    final static int PARTEDPARTIAL = -2;
 
     public static ArrayList<ArrayList<Meld>> getAllPossiblePaths(ArrayList<ArrayList<ArrayList<Meld>>> allPermutations, ArrayList<ArrayList<ArrayList<Tile>>> tileTracker){
         ArrayList<ArrayList<Meld>> craks = allPermutations.get(0);
@@ -50,7 +43,7 @@ public class Algorithm {
                 for (int r = 0; r < tileTrackerSubset.size(); r++){
                     ArrayList<Tile> rankTracker = tileTrackerSubset.get(r);
                     if (rankTracker.size() == 1){
-                        Meld loneTileMeld = new Meld(LONETILE, s, r);
+                        Meld loneTileMeld = new Meld(MeldType.LONETILE, s, r);
                         loneTileMeld.tiles.add(rankTracker.get(0));
                         temp.add(loneTileMeld);
                     }
@@ -97,7 +90,11 @@ public class Algorithm {
         for (int r = 0; r < tileTrackerSubset.size(); r++){
             if (tileTrackerSubset.get(r).size() >= copies){
                 everCreatedMeld = true;
-                captureMeld(melds, tileTrackerSubset, copies, suit, r);
+
+                MeldType type = MeldType.KONG;
+                if (copies == 3) type = MeldType.PONG;
+                if (copies == 2) type = MeldType.EYES;
+                captureMeld(melds, tileTrackerSubset, type, suit, r);
                 
                 scanHonors(suit, suitPermutations, melds, tileTrackerSubset, memoEyes, copies, false);
                 
@@ -121,7 +118,11 @@ public class Algorithm {
         for (int r = 0; r < 9; r++){
             if (tileTrackerSubset.get(r).size() >= copies){
                 // copies: 4 = kong, 3 = pong, 2 = eyes
-                captureMeld(melds, tileTrackerSubset, copies, suit, r);
+
+                MeldType type = MeldType.KONG;
+                if (copies == 3) type = MeldType.PONG;
+                if (copies == 2) type = MeldType.EYES;
+                captureMeld(melds, tileTrackerSubset, type, suit, r);
 
                 scanDupes(suit, suitPermutations, melds, tileTrackerSubset, memoEyes, copies, false);
 
@@ -149,7 +150,7 @@ public class Algorithm {
             if (tileTrackerSubset.get(r + 1).size() == 0) continue;
             if (tileTrackerSubset.get(r + 2).size() == 0) continue;
 
-            captureMeld(melds, tileTrackerSubset, CHOW, suit, r);
+            captureMeld(melds, tileTrackerSubset, MeldType.CHOW, suit, r);
 
             scanChow(suit, suitPermutations, melds, tileTrackerSubset);
             
@@ -163,7 +164,7 @@ public class Algorithm {
             if (tileTrackerSubset.get(r).size() == 0) continue;
             if (tileTrackerSubset.get(r + 1).size() == 0) continue;
 
-            captureMeld(melds, tileTrackerSubset, JOINTPARTIAL, suit, r);
+            captureMeld(melds, tileTrackerSubset, MeldType.JOINTPARTIAL, suit, r);
 
             scanJointPartialChow(suit, suitPermutations, melds, tileTrackerSubset);
 
@@ -179,7 +180,7 @@ public class Algorithm {
             if (tileTrackerSubset.get(r + 2).size() == 0) continue;
             everCreatedMeld = true;
 
-            captureMeld(melds, tileTrackerSubset, PARTEDPARTIAL, suit, r);
+            captureMeld(melds, tileTrackerSubset, MeldType.PARTEDPARTIAL, suit, r);
 
             scanPartedPartialChow(suit, suitPermutations, melds, tileTrackerSubset);
             
@@ -224,10 +225,10 @@ public class Algorithm {
     
             int sameMeldFound = 0;
             for (Meld m: melds){
-                if (m.type == LONETILE) continue;
+                if (m.getType() == MeldType.LONETILE) continue;
                 for (Meld n: onePermutation){
-                    if(n.type == LONETILE) continue;
-                    if (m.type == n.type && m.suit == n.suit && m.rank == n.rank){
+                    if(n.getType() == MeldType.LONETILE) continue;
+                    if (m.getType() == n.getType() && m.getSuit() == n.getSuit() && m.getRank() == n.getRank()){
                         sameMeldFound++;
                         break;
                     }
@@ -241,22 +242,22 @@ public class Algorithm {
     }
 
     // subroutine of scan... Honors(), Dupes(), Chows(), JointPartialChow(), PartedPartialChow()
-    private static void captureMeld(ArrayList<Meld> melds, ArrayList<ArrayList<Tile>> tileTrackerSubset, int type, int suit, int rank){
+    private static void captureMeld(ArrayList<Meld> melds, ArrayList<ArrayList<Tile>> tileTrackerSubset, MeldType type, int suit, int rank){        
         Meld newMeld = new Meld(type, suit, rank);
 
         // lone tile melds are created by another process
-        if (type == KONG || type == PONG || type == EYES){
+        if (type == MeldType.KONG || type == MeldType.PONG || type == MeldType.EYES){
             ArrayList<Tile> rankTracker = tileTrackerSubset.get(rank);
-            for (int i = 0; i < type; i++){
+            for (int i = 0; i < type.getNum(); i++){
                 Tile t = rankTracker.remove(0);
                 newMeld.tiles.add(t);
             }
         }
-        else if (type == CHOW || type == JOINTPARTIAL || type == PARTEDPARTIAL) {
+        else if (type == MeldType.CHOW || type == MeldType.JOINTPARTIAL || type == MeldType.PARTEDPARTIAL) {
             for (int i = 0; i < 3; i++){
                 // CHOW will complete all 3 iterations
-                if (type == JOINTPARTIAL && i == 2) continue;
-                if (type == PARTEDPARTIAL && i == 1) continue;
+                if (type == MeldType.JOINTPARTIAL && i == 2) continue;
+                if (type == MeldType.PARTEDPARTIAL && i == 1) continue;
 
                 ArrayList<Tile> rankTracker = tileTrackerSubset.get(rank + i);
                 Tile t = rankTracker.remove(0);
@@ -290,7 +291,7 @@ public class Algorithm {
             if (remaining == 0) continue;
             else if (remaining == 1){
                 // we dont use captureMeld() because it deducts from the tileTrackerSubset 
-                Meld tempLoneMeld = new Meld(LONETILE, suit, r);
+                Meld tempLoneMeld = new Meld(MeldType.LONETILE, suit, r);
                 Tile t = tileTrackerSubset.get(r).get(0);
                 tempLoneMeld.tiles.add(t);
 
