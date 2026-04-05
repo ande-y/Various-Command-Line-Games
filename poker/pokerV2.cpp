@@ -614,10 +614,10 @@ int main(){
     srand(time(0));
 
     Player p0(true, "YOU", 100);
-    Player p1(false, "opp1", 100);
-    Player p2(false, "opp2", 100);
-    Player p3(false, "opp3", 100);
-    Player p4(false, "opp4", 100);
+    Player p1(false, "Arif", 100);
+    Player p2(false, "Adnan", 100);
+    Player p3(false, "Joselyn", 100);
+    Player p4(false, "Jet", 100);
 
     vector<Player> players = {p0, p1, p2, p3, p4};
     Table table;

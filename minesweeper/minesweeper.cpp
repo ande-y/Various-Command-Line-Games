@@ -37,7 +37,10 @@ void printField(int row, int col, int gameOver, Tile **field){
                 if (field[i/2][j/4].cleared){
                     if (field[i/2][j/4].danger == 9) cout <<"۞";
                     else if (field[i/2][j/4].danger == 0) cout <<" ";
-                    else cout << field[i/2][j/4].danger;
+                    else {
+                        cout << field[i/2][j/4].danger;
+                        if (field[i/2][j/4].danger > 9 || field[i/2][j/4].danger < 0) throw runtime_error("idk!");
+                    }
                 }
                 else if (gameOver == -1 && field[i/2][j/4].danger == 9) cout <<"۞";
                 else if (gameOver == 1 && field[i/2][j/4].danger == 9) cout <<"ꟼ";
@@ -90,7 +93,7 @@ int main(){
         cin >> row >> col;
     } while (row < 1 || row > 30 || col < 1 || col > 30);
     Tile **field = new Tile*[row];
-    for (int i = 0; i < col; i++) field[i] = new Tile[col];
+    for (int i = 0; i < row; i++) field[i] = new Tile[col];
 
     int mines;
     do {
@@ -120,12 +123,12 @@ int main(){
         } while (field[rRow][rCol].danger == 9 || (R == rRow && C == rCol));    // redo if mine alredy placed there
         field[rRow][rCol].danger = 9;                                           // or if its on player's 1st move
 
-        for (int k = -1; k < 2; k++){                                           // update mines' surrounding tiles
-            for (int l = -1; l < 2; l++){
+        for (int k = -1; k <= 1; k++){                                           // update mines' surrounding tiles
+            for (int l = -1; l <= 1; l++){
                 if (k == 0 && l == 0) continue;
                 if (rRow + k < 0 || rRow + k >= row || rCol + l < 0 || rCol + l >= col) continue;
-                if (field[rRow+k][rCol+l].danger == 9) continue;
-                else field[rRow+k][rCol+l].danger++;
+                if (field[rRow + k][rCol + l].danger == 9) continue;
+                else field[rRow + k][rCol + l].danger++;
             }
         }
     }
